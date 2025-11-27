@@ -93,6 +93,116 @@ Jika belum ada, unduh dari website darknet atau repository YOLO.
 
 ---
 
+## 🧰 Cara Menjalankan Project (Windows & Linux)
+
+Bagian ini menjelaskan langkah‑langkah menjalankan project dari awal, termasuk cara membuat dan mengaktifkan virtual environment (venv) untuk **Windows** dan **Linux**.
+
+---
+
+## 🪟 1. Cara Menjalankan di Windows
+
+### **1️⃣ Buat Virtual Environment**
+Jalankan di terminal (CMD / PowerShell):
+
+```bash
+python -m venv venv
+```
+
+### **2️⃣ Masuk ke Virtual Environment**
+```bash
+venv\Scripts\activate
+```
+
+Jika berhasil, terminal akan menampilkan:
+```
+(venv) C:\Users\...
+```
+
+### **3️⃣ Install Dependencies**
+```bash
+pip install -r requirements.txt
+```
+
+### **4️⃣ Jalankan Sistem Counting**
+```bash
+python python-counter/people_counter.py
+```
+
+### **5️⃣ Jalankan Dashboard**
+```bash
+python python-counter/dashboard.py
+```
+
+Buka browser:
+```
+http://localhost:5000
+```
+
+---
+
+## 🐧 2. Cara Menjalankan di Linux (Ubuntu, Debian, Arch, dsb.)
+
+### **1️⃣ Install Virtual Environment (jika belum ada)**
+```bash
+sudo apt install python3-venv
+```
+
+### **2️⃣ Buat Virtual Environment**
+```bash
+python3 -m venv venv
+```
+
+### **3️⃣ Masuk ke Virtual Environment**
+```bash
+source venv/bin/activate
+```
+
+Jika berhasil:
+```
+(venv) user@linux:~$
+```
+
+### **4️⃣ Install Dependencies**
+```bash
+pip install -r requirements.txt
+```
+
+### **5️⃣ Jalankan Sistem Counting**
+```bash
+python3 python-counter/people_counter.py
+```
+
+### **6️⃣ Jalankan Dashboard**
+```bash
+python3 python-counter/dashboard.py
+```
+
+Akses dashboard:
+```
+http://localhost:5000
+```
+
+---
+
+## 🔁 Ringkasan Perintah Penting
+
+| Sistem Operasi | Aktifkan venv | Jalankan Counter | Jalankan Dashboard |
+|----------------|---------------|------------------|--------------------|
+| **Windows**    | `venv\Scripts\activate` | `python python-counter/people_counter.py` | `python python-counter/dashboard.py` |
+| **Linux**      | `source venv/bin/activate` | `python3 python-counter/people_counter.py` | `python3 python-counter/dashboard.py` |
+
+---
+
+## ❗ Catatan Penting
+- Selalu aktifkan **venv** sebelum menjalankan project.
+- Jika kamera tidak terdeteksi, ubah `VIDEO_SOURCE` di `people_counter.py`.
+- Linux kadang butuh izin kamera:  
+  ```bash
+  sudo apt install v4l-utils
+  ```
+
+---
+
 # 🎥 Menjalankan Sistem Deteksi & Counting
 
 Jalankan:
