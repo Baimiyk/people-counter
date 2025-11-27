@@ -65,23 +65,7 @@ cd <repo>/python-counter
 
 ---
 
-### 3️⃣ Install Dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-Library penting:
-
-* opencv-python
-* numpy
-* flask
-* requests
-* SQLite (built‑in)
-
----
-
-## 🔽 Download Model YOLO
+## 🔽 Download Model YOLO (Lihat folder models/ dahulu )
 
 Pastikan folder `models/` berisi:
 
@@ -118,7 +102,7 @@ venv\Scripts\activate
 ### 3️⃣ Install Dependencies
 
 ```bash
-pip install -r requirements.txt
+pip install -r python-counter/requirements.txt
 ```
 
 ### 4️⃣ Jalankan Sistem Counting
@@ -160,7 +144,7 @@ source venv/bin/activate
 ### 4️⃣ Install Dependencies
 
 ```bash
-pip install -r requirements.txt
+pip install -r python-counter/requirements.txt
 ```
 
 ### 5️⃣ Jalankan Sistem Counting
@@ -322,3 +306,4 @@ Pull request sangat dipersilakan.
 # 👨‍💻 Dibuat Oleh
 
 Sistem penghitung pengunjung berbasis **Python, OpenCV, YOLO, ESP32, Flask, dan SQLite**.
+
