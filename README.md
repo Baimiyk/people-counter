@@ -1,22 +1,22 @@
 # 📊 People Counter – Python + ESP32 + YOLO + SQLite + Dashboard
 
-Sistem ini digunakan untuk menghitung jumlah pengunjung dalam suatu ruangan (misalnya perpustakaan) menggunakan kamera (webcam atau ESP32‑CAM), mendeteksi manusia melalui YOLO, menyimpan data ke SQLite, dan menampilkannya melalui dashboard Flask.
+Sistem ini dibuat untuk menghitung jumlah pengunjung pada suatu ruangan menggunakan kamera (webcam atau ESP32-CAM), menyimpan data ke SQLite, dan menampilkannya pada dashboard web berbasis Flask.
 
 ---
 
-## ✨ Fitur Utama
+# ✨ Fitur Utama
 
-* Deteksi manusia menggunakan **YOLOv3‑tiny + OpenCV**
-* Tracking objek dengan **Centroid Tracker** (mencegah double-count)
-* Deteksi arah **masuk/keluar** berbasis line crossing
+* Deteksi manusia menggunakan YOLOv3-tiny + OpenCV
+* Tracking objek dengan Centroid Tracker (anti double-count)
+* Deteksi arah masuk/keluar dengan line‑crossing
 * Penyimpanan data harian & bulanan ke SQLite
-* Dashboard real‑time berbasis Flask + Chart.js
-* Integrasi opsional dengan **ESP32 / ESP32-CAM**
-* Struktur modular dan mudah dikembangkan
+* Dashboard real-time Flask + Chart.js
+* Integrasi opsional ESP32 / ESP32-CAM
+* Struktur modular, mudah dikembangkan
 
 ---
 
-## 📂 Struktur Folder Project
+# 📂 Struktur Folder Project
 
 ```
 people-counter-esp32/
@@ -44,30 +44,60 @@ people-counter-esp32/
 
 ---
 
-## 🚀 Instalasi & Setup
+# 🚀 Instalasi & Setup
 
-### 1️⃣ Persiapan Lingkungan
+## 1️⃣ Persiapan Lingkungan
 
-Pastikan Python **3.9–3.12** terpasang:
+Pastikan Python versi 3.9–3.12 sudah terpasang.
 
-```bash
+```
 python --version
 ```
 
 ---
 
-### 2️⃣ Clone Repository
+## 2️⃣ Clone Repository
 
-```bash
+```
 git clone https://github.com/<username>/<repo>.git
 cd <repo>/python-counter
 ```
 
 ---
 
-## 🔽 Download Model YOLO (Lihat folder models/ dahulu )
+## 3️⃣ Membuat Virtual Environment
 
-Pastikan folder `models/` berisi:
+```
+python -m venv venv
+```
+
+### Mengaktifkan Virtual Environment
+
+**Windows:**
+
+```
+venv\Scripts\activate
+```
+
+**Linux:**
+
+```
+source venv/bin/activate
+```
+
+---
+
+## 4️⃣ Install Dependencies
+
+```
+pip install -r python-counter/requirements.txt
+```
+
+---
+
+## 5️⃣ Download Model YOLO (pastikan di models/ terlebih dahulu)
+
+Pastikan file berikut ada di folder `models/`:
 
 ```
 yolov3-tiny.cfg
@@ -75,181 +105,166 @@ yolov3-tiny.weights
 coco.names
 ```
 
-Jika belum ada, unduh dari repositori YOLO / darknet.
+Jika belum ada, unduh dari Darknet atau repo resmi YOLO.
 
 ---
 
-# 🧰 Menjalankan Project
+# 🧰 Cara Menjalankan Project
 
-Panduan berikut mencakup Windows & Linux.
+## 🪟 Windows
 
----
+1. Aktifkan venv
 
-## 🪟 **Menjalankan di Windows**
-
-### 1️⃣ Buat Virtual Environment
-
-```bash
-python -m venv venv
 ```
-
-### 2️⃣ Aktifkan venv
-
-```bash
 venv\Scripts\activate
 ```
 
-### 3️⃣ Install Dependencies
+2. Jalankan sistem counting
 
-```bash
-pip install -r python-counter/requirements.txt
 ```
-
-### 4️⃣ Jalankan Sistem Counting
-
-```bash
 python python-counter/people_counter.py
 ```
 
-### 5️⃣ Jalankan Dashboard
+3. Jalankan dashboard
 
-```bash
+```
 python python-counter/dashboard.py
 ```
 
-Buka: [http://localhost:5000](http://localhost:5000)
+Akses di browser:
+
+```
+http://localhost:5000
+```
 
 ---
 
-## 🐧 **Menjalankan di Linux (Ubuntu, Debian, Arch, dll.)**
+## 🐧 Linux
 
-### 1️⃣ Instal venv (jika belum)
 
-```bash
-sudo apt install python3-venv
+1. Aktifkan venv
+
 ```
-
-### 2️⃣ Buat Virtual Environment
-
-```bash
-python3 -m venv venv
-```
-
-### 3️⃣ Aktifkan venv
-
-```bash
 source venv/bin/activate
 ```
 
-### 4️⃣ Install Dependencies
+2. Install dependencies
 
-```bash
-pip install -r python-counter/requirements.txt
+```
+pip install -r requirements.txt
 ```
 
-### 5️⃣ Jalankan Sistem Counting
+3. Jalankan counting
 
-```bash
+```
 python3 python-counter/people_counter.py
 ```
 
-### 6️⃣ Jalankan Dashboard
+4. Jalankan dashboard
 
-```bash
+```
 python3 python-counter/dashboard.py
 ```
 
-Akses: [http://localhost:5000](http://localhost:5000)
+Akses:
+
+```
+http://localhost:5000
+```
 
 ---
 
-## 🔁 Ringkasan Perintah Penting
+# 🔁 Ringkasan Perintah Penting
 
-| Sistem Operasi | Aktifkan venv              | Jalankan Counter                           | Jalankan Dashboard                    |
-| -------------- | -------------------------- | ------------------------------------------ | ------------------------------------- |
-| Windows        | `venv\Scripts\activate`    | `python python-counter/people_counter.py`  | `python python-counter/dashboard.py`  |
-| Linux          | `source venv/bin/activate` | `python3 python-counter/people_counter.py` | `python3 python-counter/dashboard.py` |
+| Sistem Operasi | Aktifkan venv            | Jalankan Counter                         | Jalankan Dashboard                  |
+| -------------- | ------------------------ | ---------------------------------------- | ----------------------------------- |
+| Windows        | venv\Scripts\activate    | python python-counter/people_counter.py  | python python-counter/dashboard.py  |
+| Linux          | source venv/bin/activate | python3 python-counter/people_counter.py | python3 python-counter/dashboard.py |
 
 ---
 
 # 🎥 Menjalankan Sistem Deteksi & Counting
 
-```bash
+```
 python people_counter.py
 ```
 
-Proses:
+Fungsi:
 
 * Kamera aktif
 * YOLO mendeteksi manusia
-* Centroid tracker memberi ID unik
-* Line crossing menentukan **IN/OUT**
-* Data disimpan otomatis ke SQLite (`people_counter.db`)
+* Tracker memberi ID unik
+* Line crossing hitung masuk/keluar
+* Data tersimpan otomatis ke SQLite
 
 ---
 
 # 📊 Menjalankan Dashboard
 
-```bash
+```
 python dashboard.py
 ```
 
-Akses: [http://localhost:5000](http://localhost:5000)
+Akses:
+
+```
+http://localhost:5000
+```
 
 Dashboard menampilkan:
 
-* Grafik pengunjung harian
+* Grafik harian
 * Total bulanan
-* Riwayat event masuk/keluar
+* Log masuk/keluar
 
 ---
 
-# ⚙️ Konfigurasi Penting (people_counter.py)
+# ⚙️ Konfigurasi Penting
 
-```python
+```
 VIDEO_SOURCE = 0
 LINE_POSITION = 0.5
 DB_PATH = "people_counter.db"
 ESP32_ENDPOINT = None
 ```
 
-Contoh mengaktifkan ESP32:
+Untuk mengirim event ke ESP32:
 
-```python
+```
 ESP32_ENDPOINT = "http://192.168.4.1/event"
 ```
 
 ---
 
-# 📡 Integrasi ESP32 (Opsional)
+# 📡 Integrasi ESP32
 
-ESP32 dapat menerima event HTTP:
-
-```json
-{ "event": "in" }
-```
-
-Dapat digunakan untuk:
+ESP32 dapat digunakan untuk:
 
 * Menampilkan jumlah pengunjung
 * Menerima event dari Python
-* Memberi feedback tambahan
+* Mengirim feedback tambahan
+
+Format JSON:
+
+```
+{ "event": "in" }
+```
 
 ---
 
-# 🔄 Cara Kerja Sistem
+# 🔄 Diagram Alur
 
 ```
-Kamera (Webcam / ESP32-CAM)
-        ↓
-YOLOv3-Tiny
-        ↓
+Kamera
+ ↓
+YOLOv3-Tiny (deteksi manusia)
+ ↓
 Centroid Tracker
-        ↓
-Line Crossing Detection (IN/OUT)
-        ↓
-SQLite (events)
-        ↓
+ ↓
+Line Crossing (IN/OUT)
+ ↓
+Simpan SQLite
+ ↓
 Dashboard Flask
 ```
 
@@ -259,11 +274,11 @@ Dashboard Flask
 
 ## Tabel `events`
 
-| Field     | Tipe    | Keterangan      |
-| --------- | ------- | --------------- |
-| id        | INTEGER | Primary key     |
-| ts        | TEXT    | Timestamp       |
-| direction | TEXT    | "in" atau "out" |
+| Field     | Tipe    | Keterangan   |
+| --------- | ------- | ------------ |
+| id        | INTEGER | Primary key  |
+| ts        | TEXT    | Timestamp    |
+| direction | TEXT    | "in" / "out" |
 
 ---
 
@@ -273,19 +288,17 @@ Dashboard Flask
 
 Ubah:
 
-```python
+```
 VIDEO_SOURCE = 1
 ```
 
-### File YOLO tidak ditemukan
+### YOLO file not found
 
 Pastikan folder `models/` lengkap.
 
-### Flask tidak tampil
+### Flask tidak muncul
 
-Cek port:
-
-```bash
+```
 lsof -i:5000
 ```
 
@@ -293,7 +306,7 @@ lsof -i:5000
 
 # 📜 Lisensi
 
-Proyek dirilis dengan **MIT License**.
+MIT License.
 
 ---
 
@@ -305,5 +318,4 @@ Pull request sangat dipersilakan.
 
 # 👨‍💻 Dibuat Oleh
 
-Sistem penghitung pengunjung berbasis **Python, OpenCV, YOLO, ESP32, Flask, dan SQLite**.
-
+Tim pengembang sistem penghitung pengunjung berbasis Python, YOLO, OpenCV, ESP32, Flask, dan SQLite.
