@@ -122,7 +122,7 @@ venv\Scripts\activate
 2. Jalankan sistem counting
 
 ```
-python people_counter.py
+python python-counter/people_counter.py
 ```
 
 3. Jalankan dashboard
@@ -151,7 +151,7 @@ source venv/bin/activate
 2. Jalankan counting
 
 ```
-python3 people_counter.py
+python3 python-counter/people_counter.py
 ```
 
 3. Jalankan dashboard
@@ -313,4 +313,5 @@ Pull request sangat dipersilakan.
 # 👨‍💻 Dibuat Oleh
 
 Tim pengembang sistem penghitung pengunjung berbasis Python, YOLO, OpenCV, ESP32, Flask, dan SQLite.
+
 
