@@ -4,19 +4,19 @@ Sistem ini dibuat untuk menghitung jumlah pengunjung pada suatu ruangan (contoh:
 
 ---
 
-## ✨ Fitur Utama
+# ✨ Fitur Utama
 
 - Deteksi manusia menggunakan **YOLOv3-tiny + OpenCV**  
 - Tracking object menggunakan **Centroid Tracker** (anti double-count)  
-- Menentukan **arah masuk/keluar** berdasarkan garis virtual  
-- Penyimpanan data **harian & bulanan** ke database SQLite  
-- Dashboard web **real-time** menggunakan Flask + Chart.js  
-- (Opsional) Integrasi **ESP32** sebagai endpoint HTTP penerima event  
-- Struktur project modular dan mudah dikembangkan  
+- Penentuan arah **masuk/keluar** dengan line‑crossing  
+- Penyimpanan data **harian & bulanan** ke SQLite  
+- Dashboard web real-time menggunakan Flask + Chart.js  
+- Integrasi opsional dengan **ESP32 / ESP32-CAM**  
+- Struktur modular dan mudah dikembangkan  
 
 ---
 
-## 📂 Struktur Folder
+# 📂 Struktur Folder Project
 
 ```
 people-counter-esp32/
@@ -44,50 +44,98 @@ people-counter-esp32/
 
 ---
 
-## 🚀 Cara Menjalankan Project
+# 🚀 Instalasi & Setup
 
-### **1. Install dependensi**
+## 1️⃣ Persiapan Lingkungan
+Pastikan Python versi **3.9–3.12** terpasang:
+
+```bash
+python --version
+```
+
+---
+
+## 2️⃣ Clone Repository
+
+```bash
+git clone https://github.com/<username>/<repo>.git
+cd <repo>/python-counter
+```
+
+---
+
+## 3️⃣ Install Dependencies
+
 ```bash
 pip install -r requirements.txt
 ```
 
-### **2. Jalankan sistem deteksi & counting**
-```bash
-python python-counter/people_counter.py
-```
-
-Jika menggunakan webcam → otomatis aktif.  
-Jika ingin pakai ESP32-CAM → sesuaikan URL stream di script.
+Library utama:
+- `opencv-python`
+- `numpy`
+- `flask`
+- `requests`
+- SQLite (built‑in)
 
 ---
 
-### **3. Jalankan Dashboard**
-```bash
-python python-counter/dashboard.py
+## 4️⃣ Download Model YOLO
+
+Pastikan file berikut ada di `models/`:
+
+```
+yolov3-tiny.cfg
+yolov3-tiny.weights
+coco.names
 ```
 
-Lalu buka:
+Jika belum ada, unduh dari website darknet atau repository YOLO.
+
+---
+
+# 🎥 Menjalankan Sistem Deteksi & Counting
+
+Jalankan:
+
+```bash
+python people_counter.py
+```
+
+Fungsi:
+- Kamera aktif
+- YOLO mendeteksi manusia
+- Centroid tracker memberikan ID tiap objek
+- Crossing line → hitung masuk/keluar
+- Simpan ke SQLite otomatis (`people_counter.db`)
+
+---
+
+# 📊 Menjalankan Dashboard
+
+```bash
+python dashboard.py
+```
+
+Buka:
 
 ```
 http://localhost:5000
 ```
 
-Dashboard akan menampilkan:
-
-- Pengunjung masuk per hari  
-- Pengunjung keluar per hari  
-- Total pengunjung per bulan  
-- Navigasi bulan & tahun  
+Dashboard menampilkan:
+- Grafik pengunjung harian
+- Total pengunjung bulanan
+- Riwayat event masuk/keluar
 
 ---
 
-## ⚙️ Konfigurasi Penting (people_counter.py)
+# ⚙️ Konfigurasi Penting (people_counter.py)
 
 ```python
-VIDEO_SOURCE = 0                      # Webcam index
-LINE_POSITION = 0.5                   # Garis hitung (50% dari tinggi frame)
-DB_PATH = "people_counter.db"         # File SQLite
-ESP32_ENDPOINT = None                 # HTTP POST ke ESP32 (opsional)
+VIDEO_SOURCE = 0                      # Webcam
+LINE_POSITION = 0.5                   # Garis deteksi
+DB_PATH = "people_counter.db"         # SQLite
+ESP32_ENDPOINT = None                 # Endpoint ESP32 (opsional)
 ```
 
 Jika ingin kirim event ke ESP32:
@@ -98,67 +146,86 @@ ESP32_ENDPOINT = "http://192.168.4.1/event"
 
 ---
 
-## 🧩 ESP32 (Opsional)
+# 📡 Integrasi ESP32 (Opsional)
 
-Folder `esp32/` berisi script MicroPython untuk:
+ESP32 dapat digunakan untuk:
 
-- Menjalankan server HTTP kecil  
-- Menerima event dari Python (misal: "masuk" atau "keluar")  
-- Menampilkan total pengunjung di serial monitor  
+- Menampilkan jumlah pengunjung  
+- Bertindak sebagai penerima HTTP event dari Python  
+- Mengirim feedback atau perhitungan tambahan  
 
-Cocok jika ingin menggabungkan Python + IoT.
-
----
-
-## 📊 Tampilan Dashboard
-
-### Contoh grafik yang ditampilkan:
-
-- Grafik pengunjung harian  
-- Total masuk per bulan  
-- Total keluar per bulan  
-
-Menggunakan **Flask + Chart.js** dengan API endpoint JSON.
+Format JSON event:
+```json
+{ "event": "in" }
+```
 
 ---
 
-## 🛢 Database
+# 🔄 Cara Kerja Sistem (Flow)
 
-Menggunakan **SQLite** dengan tabel:
-
-### `events`
-| Field      | Tipe     | Keterangan                 |
-|------------|----------|----------------------------|
-| id         | INTEGER  | Primary key                |
-| ts         | TEXT     | Timestamp event            |
-| direction  | TEXT     | "in" atau "out"            |
-
----
-
-## 📝 Todo / Rencana Pengembangan
-
-- Integrasi penuh dengan **ESP32-CAM**  
-- Deploy dashboard ke server (Render / Railway / Docker)  
-- Export laporan ke **Excel / PDF**  
-- Notifikasi **Telegram** setiap pengunjung masuk  
+```
+Kamera (Webcam / ESP32-CAM)
+          ↓
+YOLOv3-Tiny (deteksi manusia)
+          ↓
+Centroid Tracker (tracking ID unik)
+          ↓
+Line Crossing Detection (IN/OUT)
+          ↓
+Simpan ke SQLite (ts, direction)
+          ↓
+Dashboard: Grafik harian & bulanan
+```
 
 ---
 
-## 📜 Lisensi
+# 🛢 Database
 
-Project ini dirilis dengan lisensi **MIT License**, bebas digunakan untuk belajar, riset, maupun produksi komersial.
+## Tabel `events`
+
+| Field     | Type     | Keterangan            |
+|-----------|----------|------------------------|
+| id        | INTEGER  | Primary key            |
+| ts        | TEXT     | Timestamp event        |
+| direction | TEXT     | "in" atau "out"        |
 
 ---
 
-## 🤝 Kontribusi
+# 🧪 Troubleshooting
 
-Pull request sangat diterima!  
-Silakan fork repo ini, buat branch baru, dan ajukan PR.
+### Kamera tidak terbaca
+Ubah:
+
+```python
+VIDEO_SOURCE = 1
+```
+
+### YOLO file not found
+Pastikan folder `models/` lengkap.
+
+### Flask tidak muncul
+Cek port:
+
+```bash
+lsof -i:5000
+```
 
 ---
 
-## 👨‍💻 Dibuat Oleh
+# 📜 Lisensi
 
-Tim Project Sistem Penghitung Pengunjung  
-menggunakan Python, OpenCV, YOLO, ESP32, dan Flask.
+Project ini dirilis dengan lisensi **MIT License**.
 
+---
+
+# 🤝 Kontribusi
+
+Pull request dipersilakan!  
+Fork repo, buat branch, lalu ajukan PR.
+
+---
+
+# 👨‍💻 Dibuat Oleh
+
+Tim pengembang sistem penghitung pengunjung menggunakan  
+**Python, OpenCV, YOLO, ESP32, Flask, dan SQLite.**
