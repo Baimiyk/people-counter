@@ -148,13 +148,7 @@ http://localhost:5000
 source venv/bin/activate
 ```
 
-2. Install dependencies
-
-```
-pip install -r requirements.txt
-```
-
-3. Jalankan counting
+2. Jalankan counting
 
 ```
 python3 python-counter/people_counter.py
@@ -319,3 +313,4 @@ Pull request sangat dipersilakan.
 # 👨‍💻 Dibuat Oleh
 
 Tim pengembang sistem penghitung pengunjung berbasis Python, YOLO, OpenCV, ESP32, Flask, dan SQLite.
+
