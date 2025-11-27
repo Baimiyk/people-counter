@@ -6,18 +6,20 @@ from datetime import datetime
 import numpy as np
 import requests  # untuk mengirim ke ESP32 (optional)
 from centroid_tracker import CentroidTracker
+import os
 
 # -------- CONFIG --------
-YOLO_CFG = "yolov3-tiny.cfg"
-YOLO_WEIGHTS = "yolov3-tiny.weights"
-COCO_NAMES = "coco.names"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+YOLO_CFG = os.path.join(BASE_DIR, "models", "yolov3-tiny.cfg")
+YOLO_WEIGHTS = os.path.join(BASE_DIR, "models", "yolov3-tiny.weights")
+COCO_NAMES = os.path.join(BASE_DIR, "models", "coco.names")
 CONF_THRESHOLD = 0.4
 NMS_THRESHOLD = 0.4
 
 VIDEO_SOURCE = 0           # 0 = laptop webcam
 LINE_POSITION = 0.5        # posisi garis (fraction dari height)
 MIN_BOX_AREA = 400
-DB_PATH = "people_counter.db"
+DB_PATH = os.path.join(BASE_DIR, "people_counter.db")
 
 # Optional: jika mau kirim event ke ESP32 (microcontroller), isi IP dan endpoint:
 ESP32_ENDPOINT = None  # contoh: "http://192.168.4.1/event" atau None untuk disable
