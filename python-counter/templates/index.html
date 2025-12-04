@@ -1,61 +1,355 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
 <head>
-    <meta charset="utf-8" />
-    <title>People Counter Dashboard</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart People Counter AI</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
     <style>
-        body { font-family: Arial; padding: 20px; background: #f7f7f7; }
-        .card { background: white; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0px 1px 4px rgba(0,0,0,0.1); }
+        body { font-family: 'Inter', sans-serif; }
+        [x-cloak] { display: none !important; }
+        
+        /* Animasi Live Indicator */
+        @keyframes pulse-red {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .live-dot { animation: pulse-red 1.5s infinite; }
     </style>
 </head>
-<body>
-    <h1>📊 People Counter Dashboard</h1>
-    <form method="GET">
-        <label>Tahun:</label>
-        <input type="number" name="year" value="{{ year }}" />
-        <label>Bulan:</label>
-        <input type="number" name="month" value="{{ month }}" min="1" max="12" />
-        <button type="submit">Tampilkan</button>
-    </form>
 
-    <div class="card">
-        <h2>Total Bulanan</h2>
-        <p><b>Masuk:</b> <span id="total-in">...</span></p>
-        <p><b>Keluar:</b> <span id="total-out">...</span></p>
+<body class="bg-gray-100 text-slate-800" 
+      x-data="appLogic()" 
+      x-init="initApp()">
+
+    <div class="flex h-screen overflow-hidden">
+        
+        <aside class="w-64 bg-slate-900 text-white flex flex-col shadow-2xl z-20 hidden md:flex transition-all">
+            <div class="h-20 flex items-center justify-center border-b border-slate-800 bg-slate-950">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 bg-gradient-to-br from-green-400 to-blue-500 rounded-lg flex items-center justify-center font-bold text-white shadow-lg">AI</div>
+                    <h1 class="text-xl font-bold tracking-wider text-gray-100">COUNTER</h1>
+                </div>
+            </div>
+
+            <nav class="flex-1 px-4 py-6 space-y-2">
+                <button @click="switchPage('dashboard')" 
+                        :class="currentPage === 'dashboard' ? 'bg-slate-800 text-green-400 border-r-4 border-green-400' : 'text-gray-400 hover:bg-slate-800 hover:text-gray-200'"
+                        class="w-full flex items-center px-4 py-3 transition-all duration-200 text-sm font-medium rounded-r-sm rounded-l-lg group">
+                    <svg class="w-5 h-5 mr-3 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+                    Dashboard
+                </button>
+
+                <button @click="switchPage('history')" 
+                        :class="currentPage === 'history' ? 'bg-slate-800 text-green-400 border-r-4 border-green-400' : 'text-gray-400 hover:bg-slate-800 hover:text-gray-200'"
+                        class="w-full flex items-center px-4 py-3 transition-all duration-200 text-sm font-medium rounded-r-sm rounded-l-lg group">
+                    <svg class="w-5 h-5 mr-3 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Riwayat Data
+                </button>
+
+                <button @click="switchPage('settings')" 
+                        :class="currentPage === 'settings' ? 'bg-slate-800 text-green-400 border-r-4 border-green-400' : 'text-gray-400 hover:bg-slate-800 hover:text-gray-200'"
+                        class="w-full flex items-center px-4 py-3 transition-all duration-200 text-sm font-medium rounded-r-sm rounded-l-lg group">
+                    <svg class="w-5 h-5 mr-3 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    Pengaturan
+                </button>
+            </nav>
+
+            <div class="p-6 border-t border-slate-800">
+                <div class="bg-slate-800 rounded-lg p-4 flex items-center gap-3">
+                    <div class="relative">
+                        <div class="w-3 h-3 bg-green-500 rounded-full"></div>
+                        <div class="w-3 h-3 bg-green-500 rounded-full absolute top-0 animate-ping opacity-75"></div>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-400">Status Sistem</p>
+                        <p class="text-sm font-bold text-green-400">ONLINE</p>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+
+        <main class="flex-1 flex flex-col h-screen overflow-y-auto relative">
+            
+            <header class="h-20 bg-white shadow-sm border-b border-gray-200 flex items-center justify-between px-8 sticky top-0 z-10">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-800" x-text="getPageTitle()"></h2>
+                    <p class="text-xs text-gray-500 mt-1" x-text="currentDate"></p>
+                </div>
+                
+                <div x-show="currentPage === 'dashboard'" class="flex gap-3 bg-gray-50 p-1.5 rounded-lg border border-gray-200">
+                    <select x-model="selectedMonth" @change="fetchData()" class="bg-transparent text-sm font-semibold text-gray-600 px-2 py-1 outline-none cursor-pointer">
+                        <template x-for="(m, i) in months">
+                            <option :value="i+1" x-text="m" :selected="i+1 == selectedMonth"></option>
+                        </template>
+                    </select>
+                    <div class="w-px bg-gray-300 my-1"></div>
+                    <select x-model="selectedYear" @change="fetchData()" class="bg-transparent text-sm font-semibold text-gray-600 px-2 py-1 outline-none cursor-pointer">
+                        <option value="2024">2024</option>
+                        <option value="2025">2025</option>
+                    </select>
+                </div>
+            </header>
+
+            <div class="p-6 lg:p-8 space-y-8 pb-20">
+
+                <div x-show="currentPage === 'dashboard'" x-transition.opacity.duration.300ms class="space-y-6">
+                    
+                    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                        
+                        <div class="xl:col-span-2 bg-black rounded-2xl shadow-lg overflow-hidden relative group aspect-video flex items-center justify-center bg-slate-900">
+                            <img src="{{ url_for('video_feed') }}" alt="Live Stream" class="w-full h-full object-contain">
+                            
+                            <div class="absolute top-4 left-4 bg-black/70 backdrop-blur-md text-white px-3 py-1.5 rounded-md text-xs font-mono flex items-center gap-2 shadow-sm">
+                                <div class="w-2 h-2 bg-red-500 rounded-full live-dot"></div>
+                                LIVE REC
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col gap-4 justify-center">
+                            <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden group hover:shadow-md transition">
+                                <div class="absolute right-0 top-0 w-24 h-24 bg-green-50 rounded-full -mr-8 -mt-8 transition-transform group-hover:scale-150"></div>
+                                <p class="text-sm text-gray-500 font-semibold uppercase tracking-wide relative z-10">Total Masuk</p>
+                                <div class="flex items-baseline gap-2 mt-2 relative z-10">
+                                    <h3 class="text-4xl font-bold text-slate-800" x-text="stats.total_in">0</h3>
+                                    <span class="text-xs text-green-600 font-medium bg-green-100 px-2 py-0.5 rounded-full">Org</span>
+                                </div>
+                            </div>
+
+                            <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden group hover:shadow-md transition">
+                                <div class="absolute right-0 top-0 w-24 h-24 bg-red-50 rounded-full -mr-8 -mt-8 transition-transform group-hover:scale-150"></div>
+                                <p class="text-sm text-gray-500 font-semibold uppercase tracking-wide relative z-10">Total Keluar</p>
+                                <div class="flex items-baseline gap-2 mt-2 relative z-10">
+                                    <h3 class="text-4xl font-bold text-slate-800" x-text="stats.total_out">0</h3>
+                                    <span class="text-xs text-red-600 font-medium bg-red-100 px-2 py-0.5 rounded-full">Org</span>
+                                </div>
+                            </div>
+
+                            <div class="bg-slate-800 p-5 rounded-2xl shadow-lg relative overflow-hidden text-white">
+                                <div class="absolute right-0 bottom-0 w-32 h-32 bg-slate-700/50 rounded-full -mr-10 -mb-10"></div>
+                                <p class="text-xs text-slate-400 font-semibold uppercase tracking-wide">Sedang di Ruangan</p>
+                                <div class="flex items-center justify-between mt-3">
+                                    <h3 class="text-5xl font-bold text-blue-400" x-text="Math.max(0, stats.total_in - stats.total_out)">0</h3>
+                                    <svg class="w-10 h-10 text-slate-600" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"></path></svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="text-lg font-bold text-slate-800">Analitik Trafik Harian</h3>
+                            <button class="text-sm text-blue-600 hover:underline">Download Laporan</button>
+                        </div>
+                        <div class="h-72 w-full">
+                            <canvas id="trafficChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div x-show="currentPage === 'history'" x-cloak x-transition.opacity class="space-y-6">
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                            <h3 class="font-bold text-slate-700">Log Aktivitas (50 Data Terakhir)</h3>
+                            <button @click="fetchLogs()" class="px-3 py-1.5 bg-white border border-gray-200 rounded-md text-sm text-gray-600 hover:bg-gray-50 shadow-sm">
+                                Refresh Data
+                            </button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-sm">
+                                <thead class="bg-gray-50 text-gray-500 font-semibold uppercase text-xs">
+                                    <tr>
+                                        <th class="px-6 py-3">ID</th>
+                                        <th class="px-6 py-3">Waktu Kejadian</th>
+                                        <th class="px-6 py-3">Arah</th>
+                                        <th class="px-6 py-3 text-right">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    <template x-for="log in logs" :key="log.id">
+                                        <tr class="hover:bg-gray-50 transition">
+                                            <td class="px-6 py-4 text-gray-500" x-text="'#' + log.id"></td>
+                                            <td class="px-6 py-4 font-medium text-slate-700" x-text="log.ts"></td>
+                                            <td class="px-6 py-4">
+                                                <span class="px-3 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1"
+                                                      :class="log.direction === 'in' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'">
+                                                    <span x-text="log.direction === 'in' ? '⬇️' : '⬆️'"></span>
+                                                    <span x-text="log.direction === 'in' ? 'MASUK' : 'KELUAR'"></span>
+                                                </span>
+                                            </td>
+                                            <td class="px-6 py-4 text-right text-gray-400">Terekam</td>
+                                        </tr>
+                                    </template>
+                                    <tr x-show="logs.length === 0">
+                                        <td colspan="4" class="px-6 py-8 text-center text-gray-400">Belum ada data tersimpan.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div x-show="currentPage === 'settings'" x-cloak x-transition.opacity>
+                    <div class="max-w-2xl bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
+                        <h3 class="text-xl font-bold text-slate-800 mb-6">Konfigurasi Sistem</h3>
+                        <div class="space-y-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Batas Kapasitas (Orang)</label>
+                                <div class="flex gap-2">
+                                    <input type="number" value="50" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition">
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">Peringatan akan muncul jika jumlah orang melebihi batas ini.</p>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Integrasi ESP32 (URL Endpoint)</label>
+                                <input type="text" placeholder="http://192.168.1.xxx/api" class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed" disabled>
+                                <p class="text-xs text-gray-500 mt-1">Diatur melalui file konfigurasi server (app.py).</p>
+                            </div>
+
+                            <div class="flex items-center justify-between py-4 border-t border-gray-100">
+                                <div>
+                                    <p class="font-medium text-slate-700">Mode Malam</p>
+                                    <p class="text-xs text-gray-500">Tingkatkan sensitivitas kamera saat gelap.</p>
+                                </div>
+                                <button class="w-12 h-6 bg-gray-200 rounded-full relative transition-colors">
+                                    <div class="w-4 h-4 bg-white rounded-full absolute left-1 top-1 shadow-sm"></div>
+                                </button>
+                            </div>
+
+                            <div class="pt-4">
+                                <button class="bg-slate-900 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-slate-800 transition w-full sm:w-auto">Simpan Perubahan</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
     </div>
 
-    <div class="card">
-        <h2>Grafik Pengunjung Harian</h2>
-        <canvas id="dailyChart"></canvas>
-    </div>
+    <script>
+        function appLogic() {
+            return {
+                currentPage: 'dashboard',
+                selectedYear: new Date().getFullYear(),
+                selectedMonth: new Date().getMonth() + 1,
+                months: ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'],
+                currentDate: new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
+                
+                stats: { total_in: 0, total_out: 0 },
+                logs: [],
+                chartInstance: null,
 
-<script>
-    const year = {{ year }};
-    const month = {{ month }};
-
-    fetch(`/api/daily?year=${year}&month=${month}`)
-        .then(res => res.json())
-        .then(data => {
-            new Chart(document.getElementById("dailyChart").getContext("2d"), {
-                type: "line",
-                data: {
-                    labels: data.days,
-                    datasets: [
-                        { label: "Masuk", data: data.in, borderColor: "green", fill:false },
-                        { label: "Keluar", data: data.out, borderColor: "red", fill:false }
-                    ]
+                getPageTitle() {
+                    const titles = {
+                        'dashboard': 'Dashboard Utama',
+                        'history': 'Riwayat Kunjungan',
+                        'settings': 'Pengaturan Sistem'
+                    };
+                    return titles[this.currentPage];
                 },
-                options: { responsive:true }
-            });
-        });
 
-    fetch(`/api/monthly?year=${year}&month=${month}`)
-        .then(res => res.json())
-        .then(data => {
-            document.getElementById("total-in").textContent = data.total_in;
-            document.getElementById("total-out").textContent = data.total_out;
-        });
-</script>
+                switchPage(page) {
+                    this.currentPage = page;
+                    if(page === 'history') this.fetchLogs();
+                    if(page === 'dashboard') this.fetchData();
+                },
+
+                initApp() {
+                    this.initChart();
+                    this.fetchData();
+                    
+                    // Polling data setiap 2 detik agar realtime
+                    setInterval(() => {
+                        if(this.currentPage === 'dashboard') this.fetchData();
+                    }, 2000);
+                },
+
+                async fetchData() {
+                    try {
+                        const params = `?year=${this.selectedYear}&month=${this.selectedMonth}`;
+                        
+                        // 1. Ambil Summary
+                        const resMeta = await fetch(`/api/monthly${params}`);
+                        const dataMeta = await resMeta.json();
+                        this.stats = dataMeta;
+
+                        // 2. Ambil Data Grafik
+                        const resDaily = await fetch(`/api/daily${params}`);
+                        const dataDaily = await resDaily.json();
+                        this.updateChart(dataDaily);
+
+                    } catch (e) { console.error("Error fetching data", e); }
+                },
+
+                async fetchLogs() {
+                    try {
+                        const res = await fetch('/api/logs');
+                        if(res.ok) this.logs = await res.json();
+                    } catch (e) { console.error("Error fetching logs", e); }
+                },
+
+                initChart() {
+                    const ctx = document.getElementById('trafficChart').getContext('2d');
+                    this.chartInstance = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: [],
+                            datasets: [
+                                {
+                                    label: 'Masuk',
+                                    data: [],
+                                    backgroundColor: '#4ade80', // Green-400
+                                    borderRadius: 4,
+                                    barPercentage: 0.6
+                                },
+                                {
+                                    label: 'Keluar',
+                                    data: [],
+                                    backgroundColor: '#f87171', // Red-400
+                                    borderRadius: 4,
+                                    barPercentage: 0.6
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { position: 'bottom' }
+                            },
+                            scales: {
+                                y: { 
+                                    beginAtZero: true, 
+                                    grid: { borderDash: [2, 4] } 
+                                },
+                                x: { 
+                                    grid: { display: false } 
+                                }
+                            }
+                        }
+                    });
+                },
+
+                updateChart(data) {
+                    if (!this.chartInstance) return;
+                    // Format tanggal ambil hari saja
+                    const labels = data.days.map(d => d.split('-')[2]);
+                    
+                    this.chartInstance.data.labels = labels;
+                    this.chartInstance.data.datasets[0].data = data.in;
+                    this.chartInstance.data.datasets[1].data = data.out;
+                    this.chartInstance.update('none'); // 'none' agar animasi smooth
+                }
+            }
+        }
+    </script>
 </body>
 </html>

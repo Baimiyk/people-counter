@@ -36,6 +36,19 @@ def get_monthly_total(year, month):
     conn.close()
     return row
 
+def get_recent_events(limit=10):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('''
+        SELECT ts, direction 
+        FROM events 
+        ORDER BY id DESC 
+        LIMIT ?
+    ''', (limit,))
+    rows = c.fetchall()
+    conn.close()
+    return rows
+
 @app.route("/")
 def dashboard():
     now = datetime.now()
@@ -63,6 +76,26 @@ def api_monthly():
         "total_in": total[0] or 0,
         "total_out": total[1] or 0
     })
+
+@app.route("/api/recent")
+def api_recent():
+    rows = get_recent_events()
+    # Format data menjadi JSON array of dicts
+    data = [{"ts": r[0], "direction": r[1]} for r in rows]
+    return jsonify(data)
+
+@app.route("/api/logs")
+def api_logs():
+    # Mengambil 50 data terakhir untuk halaman Riwayat
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('SELECT id, ts, direction FROM events ORDER BY id DESC LIMIT 50')
+    rows = c.fetchall()
+    conn.close()
+    
+    # Format data
+    data = [{"id": r[0], "ts": r[1], "direction": r[2]} for r in rows]
+    return jsonify(data)
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0")
