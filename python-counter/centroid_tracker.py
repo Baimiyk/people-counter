@@ -1,5 +1,5 @@
 import numpy as np
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple
 
 class CentroidTracker:
     def __init__(self, max_disappeared: int = 50, max_distance: int = 50):
@@ -9,7 +9,7 @@ class CentroidTracker:
         # Dictionary untuk menyimpan ID dan Centroid-nya
         self.objects: Dict[int, np.ndarray] = {}
         
-        # Dictionary untuk menghitung berapa kali update objek 'menghilang'
+        # Dictionary untuk menghitung berapa frame objek 'menghilang'
         self.disappeared: Dict[int, int] = {}
 
         # Parameter tuning
@@ -36,7 +36,6 @@ class CentroidTracker:
         if len(rects) == 0:
             for objectID in list(self.disappeared.keys()):
                 self.disappeared[objectID] += 1
-                # Hapus jika sudah menghilang melebihi batas max_disappeared
                 if self.disappeared[objectID] > self.max_disappeared:
                     self.deregister(objectID)
             return self.objects
@@ -84,18 +83,16 @@ class CentroidTracker:
             unusedRows = set(range(0, D.shape[0])).difference(usedRows)
             unusedCols = set(range(0, D.shape[1])).difference(usedCols)
 
-            # --- LOGIKA STANDARD: Hapus Objek Hilang ---
-            # Jika objek lama tidak punya pasangan input baru, tandai sebagai disappeared
+            # Hapus objek lama yang tidak punya pasangan baru (Lost)
             if D.shape[0] >= D.shape[1]:
                 for row in unusedRows:
                     objectID = objectIDs[row]
                     self.disappeared[objectID] += 1
 
-                    # Jika melebihi batas toleransi, hapus ID
                     if self.disappeared[objectID] > self.max_disappeared:
                         self.deregister(objectID)
 
-            # Jika ada input baru yang tidak punya pasangan objek lama, daftarkan sebagai ID baru
+            # Daftarkan input baru yang tidak punya pasangan lama (New)
             else:
                 for col in unusedCols:
                     self.register(inputCentroids[col])

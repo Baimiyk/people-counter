@@ -12,7 +12,6 @@ class DatabaseManager:
     def create_tables(self):
         """Membuat tabel jika belum ada."""
         # 1. Tabel Log Mentah (Raw Data) untuk Chart
-        # Menyimpan SETIAP kejadian masuk/keluar beserta waktunya.
         self.cursor.execute('''
             CREATE TABLE IF NOT EXISTS counting_logs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -21,8 +20,7 @@ class DatabaseManager:
             )
         ''')
         
-        # 2. Tabel Status Ruangan (Snapshot)
-        # Hanya berisi 1 baris data untuk menyimpan status terkini (agar tahan restart).
+        # 2. Tabel Status Ruangan (Snapshot Real-time)
         self.cursor.execute('''
             CREATE TABLE IF NOT EXISTS room_status (
                 id INTEGER PRIMARY KEY,
@@ -64,13 +62,10 @@ class DatabaseManager:
                 self.conn.commit()
 
     def log_event(self, direction):
-        """
-        Mencatat kejadian masuk/keluar.
-        direction: 'IN' atau 'OUT'
-        """
+        """Mencatat kejadian masuk/keluar."""
         self.check_date_reset()
         
-        # 1. Simpan ke Log Mentah (History)
+        # 1. Simpan ke Log Mentah
         self.cursor.execute("INSERT INTO counting_logs (direction) VALUES (?)", (direction,))
         
         # 2. Update Status Real-time
@@ -82,7 +77,7 @@ class DatabaseManager:
                 WHERE id = 1
             ''')
         elif direction == 'OUT':
-            # Gunakan MAX(0, ...) untuk mencegah jumlah orang minus
+            # MAX(0, ...) mencegah angka minus
             self.cursor.execute('''
                 UPDATE room_status 
                 SET current_people = MAX(0, current_people - 1),
@@ -93,14 +88,13 @@ class DatabaseManager:
         self.conn.commit()
 
     def get_current_status(self):
-        """Mengambil data status terkini untuk ditampilkan di layar."""
+        """Mengambil data status terkini."""
         self.check_date_reset()
         self.cursor.execute("SELECT current_people, total_in_today, total_out_today FROM room_status WHERE id=1")
-        # Return tuple: (current, total_in, total_out)
         return self.cursor.fetchone()
 
     def reset_counts(self):
-        """Reset Manual (Tombol 'R'). Mengembalikan semua angka ke 0."""
+        """Reset Manual (Tombol 'R')."""
         today = datetime.now().strftime("%Y-%m-%d")
         self.cursor.execute('''
             UPDATE room_status 
@@ -110,56 +104,11 @@ class DatabaseManager:
         self.conn.commit()
         print("[INFO] Data berhasil di-reset manual.")
 
-    # ================= QUERY CHART (Dashboard Preparation) =================
-    
+    # --- QUERY CHART ---
     def get_hourly_data(self, date_str=None):
-        """Data Grafik Harian (Per Jam). Default: Hari ini."""
-        if not date_str:
-            date_str = datetime.now().strftime("%Y-%m-%d")
-            
-        # Mengambil jumlah 'IN' per jam
-        query = '''
-            SELECT strftime('%H', timestamp) as hour, COUNT(*) 
-            FROM counting_logs 
-            WHERE date(timestamp) = ? AND direction = 'IN'
-            GROUP BY hour
-        '''
+        if not date_str: date_str = datetime.now().strftime("%Y-%m-%d")
+        query = "SELECT strftime('%H', timestamp) as hour, COUNT(*) FROM counting_logs WHERE date(timestamp) = ? AND direction = 'IN' GROUP BY hour"
         self.cursor.execute(query, (date_str,))
-        return self.cursor.fetchall() # List of (jam, jumlah)
-
-    def get_weekly_data(self):
-        """Data Grafik Mingguan (7 Hari Terakhir)."""
-        query = '''
-            SELECT date(timestamp) as day, COUNT(*) 
-            FROM counting_logs 
-            WHERE timestamp >= date('now', '-6 days') AND direction = 'IN'
-            GROUP BY day
-        '''
-        self.cursor.execute(query)
-        return self.cursor.fetchall() # List of (tanggal, jumlah)
-
-    def get_monthly_data(self, month, year):
-        """Data Grafik Bulanan (Per Tanggal)."""
-        # SQLite strftime format bulan adalah 'MM', tahun 'YYYY'
-        # Perlu filter manual
-        query = '''
-            SELECT date(timestamp) as day, COUNT(*) 
-            FROM counting_logs 
-            WHERE strftime('%m', timestamp) = ? AND strftime('%Y', timestamp) = ? AND direction = 'IN'
-            GROUP BY day
-        '''
-        self.cursor.execute(query, (f"{month:02d}", str(year)))
-        return self.cursor.fetchall()
-
-    def get_yearly_data(self, year):
-        """Data Grafik Tahunan (Per Bulan)."""
-        query = '''
-            SELECT strftime('%m', timestamp) as month, COUNT(*) 
-            FROM counting_logs 
-            WHERE strftime('%Y', timestamp) = ? AND direction = 'IN'
-            GROUP BY month
-        '''
-        self.cursor.execute(query, (str(year),))
         return self.cursor.fetchall()
 
     def close(self):
