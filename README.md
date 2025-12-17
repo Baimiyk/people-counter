@@ -170,6 +170,17 @@ Pastikan file weights ada di folder `models/`:
     *   Lihat grafik bergerak saat orang terdeteksi.
     *   Gunakan menu navigasi untuk melihat laporan bulanan.
 
+### 📱 Akses via HP (Remote Monitoring)
+Anda bisa memantau dashboard dari HP atau laptop lain dalam satu jaringan Wi-Fi:
+
+1.  **Pastikan satu jaringan**: Laptop server dan HP harus terhubung ke Wi-Fi yang sama.
+2.  **Cek IP Laptop**:
+    *   **Windows**: Buka CMD, ketik `ipconfig`. Cari IPv4 (misal: `192.168.1.5`).
+    *   **Linux/Mac**: Buka Terminal, ketik `hostname -I` atau `ifconfig`.
+3.  **Buka Browser HP**:
+    Ketik alamat IP laptop diikuti port 5000.
+    Contoh: `http://192.168.1.5:5000`
+
 ---
 
 ## 🛠️ Tech Stack
