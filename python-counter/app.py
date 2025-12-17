@@ -17,7 +17,7 @@ class PeopleCounter:
         # --- KONFIGURASI ---
         self.YOLO_CFG = "models/yolov4-tiny.cfg"
         self.YOLO_WEIGHTS = "models/yolov4-tiny.weights"
-        self.VIDEO_SOURCE = 2  # Ganti 0 untuk webcam
+        self.VIDEO_SOURCE = 0  # Ganti 0 untuk webcam
         
         # Settings Deteksi
         self.CONF_THRESHOLD = 0.4
@@ -103,10 +103,11 @@ class PeopleCounter:
         return cv2.resize(frame, dim, interpolation=cv2.INTER_AREA)
 
     def refresh_counters_from_db(self):
-        status = self.db.get_current_status()
-        self.current_people = status[0]
-        self.total_in = status[1]
-        self.total_out = status[2]
+        # Update dengan method baru dari monitoring.db
+        current, total_in, total_out = self.db.get_todays_stats()
+        self.current_people = current
+        self.total_in = total_in
+        self.total_out = total_out
 
     def run(self):
         print(f"[INFO] Membuka video: {self.VIDEO_SOURCE}")
@@ -140,49 +141,69 @@ class PeopleCounter:
                 # Pakai ID lama, tapi kotak pakai yang terakhir disimpan (visual only)
                 objects = self.tracker.objects
 
-            # --- 2. GAMBAR VISUALISASI ---
-            # Gambar kotak bounding box (Selalu digambar setiap frame)
-            for (x, y, x2, y2) in self.current_rects:
-                cv2.rectangle(frame, (x, y), (x2, y2), (0, 255, 0), 1)
-
-            # Gambar Garis & Zona
+            # --- 2. CONFIG LINE & ZONES ---
             line_y = int(self.H * self.LINE_RATIO)
             zone_upper = line_y - self.ZONE_BUFFER 
             zone_lower = line_y + self.ZONE_BUFFER 
-            
+
+            # --- 3. GAMBAR VISUALISASI ---
+            # Gambar Garis & Zona (Buffer Zone)
+            # Area Buffer (Semi-transparent overlay visualisasi manual dengan lines)
             cv2.line(frame, (0, line_y), (self.W, line_y), (0, 255, 255), 2)
             cv2.line(frame, (0, zone_upper), (self.W, zone_upper), (0, 100, 255), 1)
             cv2.line(frame, (0, zone_lower), (self.W, zone_lower), (0, 100, 255), 1)
+            
+            # Gambar kotak bounding box
+            for (x, y, x2, y2) in self.current_rects:
+                cv2.rectangle(frame, (x, y), (x2, y2), (0, 255, 0), 1)
 
-            # --- 3. LOGIKA COUNTING (Region Based) ---
+            # --- 4. LOGIKA COUNTING (Region Based + PENDING) ---
             for (objectID, centroid) in objects.items():
                 cX, cY = centroid
                 
                 # Inisialisasi state region
                 if objectID not in self.trackable_objects:
-                    start_pos = "UNKNOWN"
-                    if cY < line_y: start_pos = "UP"
-                    elif cY > line_y: start_pos = "DOWN"
+                    # Tentukan posisi awal
+                    if cY < zone_upper:
+                        start_pos = "UP"
+                    elif cY > zone_lower:
+                        start_pos = "DOWN"
+                    else:
+                        start_pos = "PENDING" # Spawn di dalam buffer
                         
                     self.trackable_objects[objectID] = {
                         "start_region": start_pos, 
-                        "counted": False
+                        "counted": False,
+                        "trace": [] # Untuk visualisasi jejak
                     }
                 
                 track_info = self.trackable_objects[objectID]
+                
+                # Update Jejak (Trace) - Simpan max 30 titik
+                track_info["trace"].append(centroid)
+                if len(track_info["trace"]) > 30:
+                    track_info["trace"].pop(0)
+
+                # Update status PENDING jika objek mulai bergerak jelas keluar buffer
+                if track_info["start_region"] == "PENDING":
+                    if cY < zone_upper:
+                        track_info["start_region"] = "UP"
+                    elif cY > zone_lower:
+                        track_info["start_region"] = "DOWN"
+                
                 start_region = track_info["start_region"]
                 
-                # Cek Lokasi Sekarang
+                # Tentukan Posisi Sekarang
                 current_region = "MIDDLE"
                 if cY < zone_upper: current_region = "UP"
                 elif cY > zone_lower: current_region = "DOWN"
 
                 # Eksekusi Hitung
-                if not track_info["counted"]:
+                if not track_info["counted"] and start_region != "PENDING":
                     # Masuk (Start BAWAH -> Akhir ATAS)
                     if start_region == "DOWN" and current_region == "UP":
                         print(f"[COUNT] ID {objectID} Valid IN")
-                        self.db.log_event('IN')
+                        self.db.log_event('IN', objectID) # Pass objectID
                         self.refresh_counters_from_db()
                         track_info["counted"] = True
                         cv2.line(frame, (0, line_y), (self.W, line_y), (255, 255, 255), 3)
@@ -190,15 +211,29 @@ class PeopleCounter:
                     # Keluar (Start ATAS -> Akhir BAWAH)
                     elif start_region == "UP" and current_region == "DOWN":
                         print(f"[COUNT] ID {objectID} Valid OUT")
-                        self.db.log_event('OUT')
+                        self.db.log_event('OUT', objectID) # Pass objectID
                         self.refresh_counters_from_db()
                         track_info["counted"] = True
                         cv2.line(frame, (0, line_y), (self.W, line_y), (255, 255, 255), 3)
 
-                # Gambar ID
-                text = f"ID {objectID}"
-                cv2.putText(frame, text, (cX - 10, cY - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
-                cv2.circle(frame, (cX, cY), 4, (0, 255, 0), -1)
+                # --- DRAWING OBJECT INFO ---
+                # Gambar Jejak
+                if len(track_info["trace"]) > 1:
+                    pts = np.array(track_info["trace"], np.int32)
+                    pts = pts.reshape((-1, 1, 2))
+                    cv2.polylines(frame, [pts], False, (0, 165, 255), 2)
+
+                # Gambar ID dan Status
+                status_text = f"ID {objectID} [{start_region}]"
+                color = (0, 255, 0) # Hijau normal
+                if start_region == "PENDING":
+                    color = (0, 165, 255) # Orange jika pending
+                elif track_info["counted"]:
+                    color = (255, 255, 0) # Cyan jika sudah dihitung
+                    status_text = f"ID {objectID} [COUNTED]"
+                
+                cv2.putText(frame, status_text, (cX - 10, cY - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+                cv2.circle(frame, (cX, cY), 4, color, -1)
 
             # Cleanup Memory
             active_ids = set(objects.keys())
@@ -207,7 +242,7 @@ class PeopleCounter:
                 if tid not in active_ids:
                     del self.trackable_objects[tid]
 
-            # --- 4. TAMPILAN HUD ---
+            # --- 5. TAMPILAN HUD ---
             cv2.rectangle(frame, (0, 0), (280, 140), (0, 0, 0), -1)
             cv2.putText(frame, f"Masuk (In): {self.total_in}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
             cv2.putText(frame, f"Keluar (Out): {self.total_out}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
