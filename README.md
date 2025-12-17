@@ -181,6 +181,19 @@ Anda bisa memantau dashboard dari HP atau laptop lain dalam satu jaringan Wi-Fi:
     Ketik alamat IP laptop diikuti port 5000.
     Contoh: `http://192.168.1.5:5000`
 
+### 🌐 Akses via Internet (Ngrok)
+Jika ingin mengakses dari luar jaringan Wi-Fi (misal data seluler):
+
+1.  **Install Ngrok**: Download dari [ngrok.com](https://ngrok.com).
+2.  **Jalankan Ngrok**:
+    Buka terminal baru, jalankan:
+    ```bash
+    ngrok http 5000
+    ```
+3.  **Salin URL**: Ngrok akan memberi URL publik (misal: `https://abcd.ngrok-free.app`). Buka URL tersebut di HP Anda.
+
+    > **Catatan**: Saat pertama kali membuka link, Anda mungkin melihat halaman peringatan biru dari Ngrok. Klik tombol **"Visit Site"** untuk melanjutkan.
+
 ---
 
 ## 🛠️ Tech Stack
