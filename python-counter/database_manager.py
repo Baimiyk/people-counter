@@ -3,10 +3,17 @@ from datetime import datetime, timedelta
 
 class DatabaseManager:
     def __init__(self, db_name="monitoring.db"):
+        self.db_name = db_name
         self.conn = sqlite3.connect(db_name, check_same_thread=False)
         self.cursor = self.conn.cursor()
         self.create_tables()
         self.location_id = self.register_default_location()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
 
     def create_tables(self):
         """Creates the new advanced schema."""
@@ -177,6 +184,16 @@ class DatabaseManager:
         '''
         self.cursor.execute(query, (self.location_id, str(year)))
         return self.cursor.fetchall()
+
+    def get_available_months(self):
+        """Returns distinct months available in daily_summary (YYYY-MM)."""
+        self.cursor.execute('''
+            SELECT DISTINCT strftime('%Y-%m', date) as month_str 
+            FROM daily_summary 
+            ORDER BY month_str DESC
+        ''')
+        rows = self.cursor.fetchall()
+        return [r[0] for r in rows if r[0] is not None]
 
     def close(self):
         self.conn.close()

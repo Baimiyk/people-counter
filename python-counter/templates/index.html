@@ -1,137 +1,238 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PerpusQu Dashboard</title>
-    
+
     <script src="https://cdn.tailwindcss.com"></script>
-    
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
+
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
-        body { font-family: 'Poppins', sans-serif; }
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #f1f1f1; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        body {
+            font-family: 'Poppins', sans-serif;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
 
         /* CCTV Effects */
-        .cctv-filter { filter: grayscale(100%) contrast(120%); }
-        .scanline {
-            width: 100%; height: 100%;
-            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1));
-            background-size: 100% 4px;
-            position: absolute; top: 0; left: 0; pointer-events: none; z-index: 10;
+        .cctv-filter {
+            filter: grayscale(100%) contrast(120%);
         }
+
+        .scanline {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to bottom, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, 0.1) 50%, rgba(0, 0, 0, 0.1));
+            background-size: 100% 4px;
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: 10;
+        }
+
         /* Animation */
-        .animate-fade-in { animation: fadeIn 0.3s ease-in-out; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        /* Modal */
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+        }
+
+        .modal.hidden {
+            display: none;
+        }
     </style>
 </head>
+
 <body class="bg-gray-100 h-screen flex overflow-hidden selection:bg-blue-100">
 
     <aside class="w-20 bg-white h-full flex flex-col items-center py-8 shadow-sm z-20 flex-shrink-0">
-        <div class="mb-10"></div> <nav class="flex flex-col gap-8 w-full">
-            <button onclick="switchTab('camera')" id="btn-camera" class="nav-btn w-full h-12 flex items-center justify-center text-blue-500 border-r-4 border-blue-500 transition-all hover:bg-gray-50">
+        <div class="mb-10"></div>
+        <nav class="flex flex-col gap-8 w-full">
+            <button onclick="switchTab('camera')" id="btn-camera"
+                class="nav-btn w-full h-12 flex items-center justify-center text-blue-500 border-r-4 border-blue-500 transition-all hover:bg-gray-50">
                 <i class="fa-solid fa-camera text-xl"></i>
             </button>
-            
-            <button onclick="switchTab('daily')" id="btn-daily" class="nav-btn w-full h-12 flex items-center justify-center text-gray-400 hover:text-blue-500 transition-all">
+
+            <button onclick="switchTab('daily')" id="btn-daily"
+                class="nav-btn w-full h-12 flex items-center justify-center text-gray-400 hover:text-blue-500 transition-all">
                 <i class="fa-solid fa-chart-line text-xl"></i>
             </button>
-            
-            <button onclick="switchTab('monthly')" id="btn-monthly" class="nav-btn w-full h-12 flex items-center justify-center text-gray-400 hover:text-blue-500 transition-all">
+
+            <button onclick="switchTab('monthly')" id="btn-monthly"
+                class="nav-btn w-full h-12 flex items-center justify-center text-gray-400 hover:text-blue-500 transition-all">
                 <i class="fa-solid fa-file-invoice text-xl"></i>
             </button>
         </nav>
     </aside>
 
     <main class="flex-1 p-4 md:p-8 flex items-center justify-center overflow-hidden">
-        
-        <div class="bg-white w-full h-full max-w-7xl rounded-[2.5rem] shadow-xl overflow-hidden relative flex flex-col p-6 md:p-10">
-            
+
+        <div
+            class="bg-white w-full h-full max-w-7xl rounded-[2.5rem] shadow-xl overflow-hidden relative flex flex-col p-6 md:p-10">
+
             <header class="flex justify-between items-center mb-6 h-10 flex-shrink-0">
                 <div class="text-[#1e1b4b] text-2xl font-bold flex items-center gap-2">
                     <i class="fa-solid fa-book-open"></i> PerpusQu
                 </div>
-                
-                <button id="header-date-dropdown" class="hidden text-gray-500 font-medium flex items-center gap-2 hover:text-gray-700 transition-opacity duration-200">
-                    November 2025 <i class="fa-solid fa-caret-down"></i>
-                </button>
+
+                <!-- Camera Selector -->
+                <div id="camera-selector-container"
+                    class="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200 transition-all duration-300">
+                    <i class="fa-solid fa-video text-gray-500 text-sm"></i>
+                    <select id="camera-select"
+                        class="bg-transparent text-sm text-gray-600 font-medium focus:outline-none cursor-pointer">
+                        <option value disabled selected>Select Camera...</option>
+                    </select>
+                </div>
+
+                <div class="relative">
+                    <button id="header-date-dropdown" onclick="toggleMonthDropdown()"
+                        class="hidden text-gray-500 font-medium flex items-center gap-2 hover:text-gray-700 transition-opacity duration-200">
+                        <span id="selected-month">November 2025</span> <i class="fa-solid fa-caret-down"></i>
+                    </button>
+                    <!-- Month Dropdown Menu -->
+                    <div id="month-menu"
+                        class="hidden absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-50">
+                        <a href="#" onclick="selectMonth('January 2025')"
+                            class="block px-4 py-2 text-sm text-gray-600 hover:bg-blue-50 hover:text-blue-500">January
+                            2025</a>
+                        <a href="#" onclick="selectMonth('February 2025')"
+                            class="block px-4 py-2 text-sm text-gray-600 hover:bg-blue-50 hover:text-blue-500">February
+                            2025</a>
+                        <a href="#" onclick="selectMonth('March 2025')"
+                            class="block px-4 py-2 text-sm text-gray-600 hover:bg-blue-50 hover:text-blue-500">March
+                            2025</a>
+                        <a href="#" onclick="selectMonth('April 2025')"
+                            class="block px-4 py-2 text-sm text-gray-600 hover:bg-blue-50 hover:text-blue-500">April
+                            2025</a>
+                        <a href="#" onclick="selectMonth('May 2025')"
+                            class="block px-4 py-2 text-sm text-gray-600 hover:bg-blue-50 hover:text-blue-500">May
+                            2025</a>
+                        <a href="#" onclick="selectMonth('June 2025')"
+                            class="block px-4 py-2 text-sm text-gray-600 hover:bg-blue-50 hover:text-blue-500">June
+                            2025</a>
+                        <a href="#" onclick="selectMonth('July 2025')"
+                            class="block px-4 py-2 text-sm text-gray-600 hover:bg-blue-50 hover:text-blue-500">July
+                            2025</a>
+                        <a href="#" onclick="selectMonth('August 2025')"
+                            class="block px-4 py-2 text-sm text-gray-600 hover:bg-blue-50 hover:text-blue-500">August
+                            2025</a>
+                        <a href="#" onclick="selectMonth('September 2025')"
+                            class="block px-4 py-2 text-sm text-gray-600 hover:bg-blue-50 hover:text-blue-500">September
+                            2025</a>
+                        <a href="#" onclick="selectMonth('October 2025')"
+                            class="block px-4 py-2 text-sm text-gray-600 hover:bg-blue-50 hover:text-blue-500">October
+                            2025</a>
+                        <a href="#" onclick="selectMonth('November 2025')"
+                            class="block px-4 py-2 text-sm text-gray-600 hover:bg-blue-50 hover:text-blue-500">November
+                            2025</a>
+                        <a href="#" onclick="selectMonth('December 2025')"
+                            class="block px-4 py-2 text-sm text-gray-600 hover:bg-blue-50 hover:text-blue-500">December
+                            2025</a>
+                    </div>
+                </div>
             </header>
 
             <div class="flex-1 relative overflow-hidden h-full">
 
-                <div id="view-camera" class="view-section w-full h-full grid grid-cols-1 lg:grid-cols-4 gap-6 animate-fade-in pb-2">
-                    
-                    <div class="lg:col-span-3 bg-black rounded-lg relative overflow-hidden shadow-inner group min-h-0">
-                        <img src="https://images.unsplash.com/photo-1574864459639-50c111051515?q=80&w=2070&auto=format&fit=crop" 
-                             alt="CCTV Feed" class="w-full h-full object-cover cctv-filter opacity-90">
-                        <div class="scanline"></div>
-                        
-                        <div class="absolute top-4 left-4 right-4 flex justify-between text-white font-mono text-lg tracking-widest drop-shadow-md z-10">
-                            <div class="flex flex-col">
-                                <span><i class="fa-solid fa-video"></i></span>
-                                <span class="text-2xl font-bold mt-auto absolute bottom-4 left-4 border border-white px-2 bg-black/50">CCTV AUTO</span>
-                            </div>
-                            <div class="text-right">
-                                <span>[U] [12h03m]</span><br>
-                                <span>08 : 09 : 19</span><br>
-                                <span class="text-red-600 font-bold blink">● REC</span>
-                            </div>
-                        </div>
+                <div id="view-camera"
+                    class="view-section w-full h-full grid grid-cols-1 lg:grid-cols-4 gap-6 animate-fade-in pb-2">
 
-                        <div class="absolute top-1/3 left-1/4 w-16 h-16 border-2 border-red-600 bg-red-500/20 box-shadow-red z-10"></div>
-                        <div class="absolute top-1/4 left-1/2 w-14 h-14 border-2 border-red-600 bg-red-500/20 box-shadow-red z-10"></div>
-                        <div class="absolute bottom-1/3 right-1/4 w-16 h-16 border-2 border-red-600 bg-red-500/20 box-shadow-red z-10"></div>
+                    <div
+                        class="lg:col-span-3 bg-black rounded-lg relative overflow-hidden shadow-inner group min-h-0 flex items-center justify-center">
+                        <img id="video-feed" src="{{ url_for('video_feed') }}" alt="CCTV Feed"
+                            class="w-full h-full object-contain">
                     </div>
 
                     <div class="flex flex-col gap-4 h-full min-h-0">
-                        
-                        <div class="bg-white border border-gray-100 rounded-2xl shadow-sm p-4 flex flex-col flex-1 min-h-0">
+
+                        <div
+                            class="bg-white border border-gray-100 rounded-2xl shadow-sm p-4 flex flex-col flex-1 min-h-0">
                             <div class="flex justify-between items-start mb-2 flex-shrink-0">
                                 <h3 class="text-xs font-bold text-gray-800">Pie Chart Example</h3>
-                                <a href="#" class="text-[10px] text-blue-500 hover:underline">View Details <i class="fas fa-external-link-alt"></i></a>
+                                <a href="#" class="text-[10px] text-blue-500 hover:underline">View Details <i
+                                        class="fas fa-external-link-alt"></i></a>
                             </div>
-                            
+
                             <div class="flex-1 min-h-0 relative flex items-center justify-center">
                                 <canvas id="pieChart"></canvas>
                             </div>
-                            
-                            <div class="mt-3 pt-2 flex justify-center items-center gap-6 border-t border-dashed border-gray-100 flex-shrink-0">
+
+                            <div
+                                class="mt-3 pt-2 flex justify-center items-center gap-6 border-t border-dashed border-gray-100 flex-shrink-0">
                                 <div class="flex items-center gap-2">
                                     <span class="w-3 h-3 rounded-full bg-[#14b8a6]"></span>
                                     <span class="text-xs text-gray-600 font-medium">Come</span>
-                                    <span class="text-sm text-gray-900 font-bold">75</span>
+                                    <span id="pie-legend-in" class="text-sm text-gray-900 font-bold">0</span>
                                 </div>
                                 <div class="flex items-center gap-2">
                                     <span class="w-3 h-3 rounded-full bg-[#facc15]"></span>
                                     <span class="text-xs text-gray-600 font-medium">Leave</span>
-                                    <span class="text-sm text-gray-900 font-bold">25</span>
+                                    <span id="pie-legend-out" class="text-sm text-gray-900 font-bold">0</span>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="bg-white border border-gray-100 rounded-2xl shadow-sm p-5 flex flex-col justify-center flex-1 min-h-0">
+                        <div
+                            class="bg-white border border-gray-100 rounded-2xl shadow-sm p-5 flex flex-col justify-center flex-1 min-h-0">
                             <div class="flex flex-col gap-4 w-full">
                                 <div>
                                     <p class="text-xs font-bold text-gray-800 mb-2">Time</p>
-                                    <div class="flex items-center gap-2 text-gray-800 text-lg font-mono font-medium">
-                                        <i class="fa-regular fa-clock text-gray-400"></i> 16:04:24
+                                    <div id="clock-time"
+                                        class="flex items-center gap-2 text-gray-800 text-lg font-mono font-medium">
+                                        <i class="fa-regular fa-clock text-gray-400"></i> --:--:--
                                     </div>
                                 </div>
-                                
+
                                 <div class="border-t border-gray-100 pt-4 w-full">
                                     <div class="grid grid-cols-2 gap-y-2 text-xs">
-                                        <div class="text-gray-400">Date</div> 
-                                        <div class="text-right text-gray-700 font-medium">27/11/2025</div>
-                                        
-                                        <div class="text-gray-400">Synced Time</div> 
-                                        <div class="text-right text-gray-700 font-medium">16:04:24</div>
+                                        <div class="text-gray-400">Date</div>
+                                        <div id="clock-date" class="text-right text-gray-700 font-medium">--/--/----
+                                        </div>
+
+                                        <div class="text-gray-400">Synced Time</div>
+                                        <div id="clock-sync" class="text-right text-gray-700 font-medium">--:--:--</div>
                                     </div>
                                 </div>
                             </div>
@@ -140,23 +241,27 @@
                 </div>
 
                 <div id="view-daily" class="view-section hidden w-full h-full flex flex-col gap-6 animate-fade-in pb-2">
-                    
+
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 flex-shrink-0">
-                        <div class="bg-white rounded-2xl shadow-[0_3px_15px_-5px_rgba(0,0,0,0.1)] p-6 flex flex-col items-center justify-center text-center border border-gray-50 h-32 lg:h-40">
+                        <div
+                            class="bg-white rounded-2xl shadow-[0_3px_15px_-5px_rgba(0,0,0,0.1)] p-6 flex flex-col items-center justify-center text-center border border-gray-50 h-32 lg:h-40">
                             <h3 class="text-gray-500 font-medium text-lg mb-2">Visitor Come</h3>
-                            <span class="text-5xl lg:text-6xl font-bold text-blue-500">20</span>
+                            <span id="stat-in" class="text-5xl lg:text-6xl font-bold text-blue-500">...</span>
                         </div>
-                        <div class="bg-white rounded-2xl shadow-[0_3px_15px_-5px_rgba(0,0,0,0.1)] p-6 flex flex-col items-center justify-center text-center border border-gray-50 h-32 lg:h-40">
+                        <div
+                            class="bg-white rounded-2xl shadow-[0_3px_15px_-5px_rgba(0,0,0,0.1)] p-6 flex flex-col items-center justify-center text-center border border-gray-50 h-32 lg:h-40">
                             <h3 class="text-gray-500 font-medium text-lg mb-2">Visitor Leave</h3>
-                            <span class="text-5xl lg:text-6xl font-bold text-orange-400">5</span>
+                            <span id="stat-out" class="text-5xl lg:text-6xl font-bold text-orange-400">...</span>
                         </div>
-                        <div class="bg-white rounded-2xl shadow-[0_3px_15px_-5px_rgba(0,0,0,0.1)] p-6 flex flex-col items-center justify-center text-center border border-gray-50 h-32 lg:h-40">
+                        <div
+                            class="bg-white rounded-2xl shadow-[0_3px_15px_-5px_rgba(0,0,0,0.1)] p-6 flex flex-col items-center justify-center text-center border border-gray-50 h-32 lg:h-40">
                             <h3 class="text-gray-500 font-medium text-lg mb-2">Current Visitor</h3>
-                            <span class="text-5xl lg:text-6xl font-bold text-[#22c55e]">15</span>
+                            <span id="stat-current" class="text-5xl lg:text-6xl font-bold text-[#22c55e]">...</span>
                         </div>
                     </div>
 
-                    <div class="bg-white rounded-2xl shadow-[0_3px_15px_-5px_rgba(0,0,0,0.1)] p-6 flex-1 border border-gray-50 flex flex-col min-h-0">
+                    <div
+                        class="bg-white rounded-2xl shadow-[0_3px_15px_-5px_rgba(0,0,0,0.1)] p-6 flex-1 border border-gray-50 flex flex-col min-h-0">
                         <h3 class="text-gray-500 text-lg font-medium mb-4 flex-shrink-0">Day Chart Vizualitation</h3>
                         <div class="relative w-full flex-1 min-h-0">
                             <canvas id="dailyChart"></canvas>
@@ -164,24 +269,29 @@
                     </div>
                 </div>
 
-                <div id="view-monthly" class="view-section hidden w-full h-full flex flex-col gap-6 animate-fade-in pb-2">
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 flex-shrink-0">
-                        <div class="bg-white rounded-2xl shadow-[0_3px_15px_-5px_rgba(0,0,0,0.1)] p-6 flex flex-col items-center justify-center text-center border border-gray-50 h-32 lg:h-40">
+                <div id="view-monthly"
+                    class="view-section hidden w-full h-full flex flex-col gap-6 animate-fade-in pb-2">
+
+                    <div id="stats-monthly" class="grid grid-cols-1 md:grid-cols-3 gap-6 flex-shrink-0">
+                        <div
+                            class="bg-white rounded-2xl shadow-[0_3px_15px_-5px_rgba(0,0,0,0.1)] p-6 flex flex-col items-center justify-center text-center border border-gray-50 h-32 lg:h-40">
                             <h3 class="text-gray-500 font-medium text-lg mb-2">Visitor Come/Month</h3>
-                            <span class="text-5xl lg:text-6xl font-bold text-blue-500">20</span>
+                            <span id="stat-month-in" class="text-5xl lg:text-6xl font-bold text-blue-500">20</span>
                         </div>
-                        <div class="bg-white rounded-2xl shadow-[0_3px_15px_-5px_rgba(0,0,0,0.1)] p-6 flex flex-col items-center justify-center text-center border border-gray-50 h-32 lg:h-40">
+                        <div
+                            class="bg-white rounded-2xl shadow-[0_3px_15px_-5px_rgba(0,0,0,0.1)] p-6 flex flex-col items-center justify-center text-center border border-gray-50 h-32 lg:h-40">
                             <h3 class="text-gray-500 font-medium text-lg mb-2">Total Visitor/Month</h3>
-                            <span class="text-5xl lg:text-6xl font-bold text-orange-400">5</span>
+                            <span id="stat-month-total" class="text-5xl lg:text-6xl font-bold text-orange-400">5</span>
                         </div>
-                        <div class="bg-white rounded-2xl shadow-[0_3px_15px_-5px_rgba(0,0,0,0.1)] p-6 flex flex-col items-center justify-center text-center border border-gray-50 h-32 lg:h-40">
+                        <div
+                            class="bg-white rounded-2xl shadow-[0_3px_15px_-5px_rgba(0,0,0,0.1)] p-6 flex flex-col items-center justify-center text-center border border-gray-50 h-32 lg:h-40">
                             <h3 class="text-gray-500 font-medium text-lg mb-2">Peak Visitor/Month</h3>
-                            <span class="text-5xl lg:text-6xl font-bold text-[#22c55e]">25</span>
+                            <span id="stat-month-peak" class="text-5xl lg:text-6xl font-bold text-[#22c55e]">25</span>
                         </div>
                     </div>
 
-                    <div class="bg-white rounded-2xl shadow-[0_3px_15px_-5px_rgba(0,0,0,0.1)] p-6 flex-1 border border-gray-50 flex flex-col min-h-0">
+                    <div
+                        class="bg-white rounded-2xl shadow-[0_3px_15px_-5px_rgba(0,0,0,0.1)] p-6 flex-1 border border-gray-50 flex flex-col min-h-0">
                         <h3 class="text-gray-500 text-lg font-medium mb-4 flex-shrink-0">Visitors per Day</h3>
                         <div class="relative w-full flex-1 min-h-0">
                             <canvas id="monthlyChart"></canvas>
@@ -193,7 +303,157 @@
         </div>
     </main>
 
+    <!-- Permission Modal -->
+    <div id="permission-modal" class="modal animate-fade-in">
+        <div class="bg-white rounded-2xl p-8 max-w-md w-full text-center shadow-2xl mx-4">
+            <div
+                class="w-16 h-16 bg-blue-100 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                <i class="fa-solid fa-video"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">Welcome to PerpusQu</h2>
+            <p class="text-gray-500 mb-6">Click button below to start the dashboard and connect to cameras.</p>
+            <button onclick="getCameras()"
+                class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-xl transition-all transform hover:scale-105 shadow-lg shadow-blue-500/30">
+                Start Dashboard
+            </button>
+            <p id="perm-error" class="hidden text-red-500 text-sm mt-4 font-medium"></p>
+        </div>
+    </div>
+
     <script>
+        // --- Real-time Stats Polling ---
+        function updateStats() {
+            fetch('/api/stats')
+                .then(response => response.json())
+                .then(data => {
+                    // Update Text Stats
+                    document.getElementById('stat-in').textContent = data.total_in;
+                    document.getElementById('stat-out').textContent = data.total_out;
+                    document.getElementById('stat-current').textContent = data.current_people;
+
+                    // Update Pie Chart
+                    updatePieChart(data.total_in, data.total_out);
+
+                    // Update Pie Legend text
+                    if (document.getElementById('pie-legend-in'))
+                        document.getElementById('pie-legend-in').textContent = data.total_in;
+                    if (document.getElementById('pie-legend-out'))
+                        document.getElementById('pie-legend-out').textContent = data.total_out;
+
+                    // Update Daily Chart
+                    if (data.hourly_chart) {
+                        updateDailyChart(data.hourly_chart);
+                    }
+                })
+                .catch(err => console.error("Error fetching stats:", err));
+        }
+
+        function updatePieChart(totalIn, totalOut) {
+            // Prevent division by zero or empty chart
+            if (totalIn === 0 && totalOut === 0) {
+                pieChart.data.datasets[0].data = [0, 0];
+            } else {
+                pieChart.data.datasets[0].data = [totalIn, totalOut];
+            }
+            pieChart.update('none'); // 'none' mode for performance
+
+            // Update sidebar numbers if present (optional)
+            // document.querySelector('.dataset-come').textContent = totalIn;
+            // document.querySelector('.dataset-leave').textContent = totalOut;
+        }
+
+        function updateDailyChart(chartData) {
+            dailyChart.data.labels = chartData.labels;
+            dailyChart.data.datasets[0].data = chartData.data_in;
+            dailyChart.data.datasets[1].data = chartData.data_out;
+            dailyChart.update('none');
+        }
+
+        function updateClock() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('en-GB', { hour12: false });
+            const dateStr = now.toLocaleDateString('en-GB'); // DD/MM/YYYY
+
+            // Update main big clock
+            const clockTime = document.getElementById('clock-time');
+            if (clockTime) clockTime.innerHTML = `<i class="fa-regular fa-clock text-gray-400"></i> ${timeStr}`;
+
+            // Update small details
+            const clockDate = document.getElementById('clock-date');
+            if (clockDate) clockDate.textContent = dateStr;
+
+            const clockSync = document.getElementById('clock-sync');
+            if (clockSync) clockSync.textContent = timeStr;
+        }
+
+        // Poll every 1 second
+        setInterval(updateStats, 1000);
+        setInterval(updateClock, 1000);
+        updateClock(); // Initial call
+
+        // --- Camera Selection Logic ---
+        const cameraSelect = document.getElementById('camera-select');
+
+        // 1. Request Permission & Enumerate Devices
+        // 1. Fetch Cameras from Backend
+        async function getCameras() {
+            const modal = document.getElementById('permission-modal');
+
+            // Backend handle permission via server, but we might want to hide modal
+            // effectively just "Start" button now
+            modal.classList.add('hidden');
+
+            try {
+                const response = await fetch('/api/cameras');
+                const data = await response.json();
+                const cameras = data.cameras; // List of physical indices [0, 2, ...]
+
+                cameraSelect.innerHTML = '';
+
+                if (cameras.length === 0) {
+                    const option = document.createElement('option');
+                    option.text = "No cameras found";
+                    option.disabled = true;
+                    cameraSelect.appendChild(option);
+                    return;
+                }
+
+                cameras.forEach((physIndex, logicalIndex) => {
+                    const option = document.createElement('option');
+                    // Value is LOGICAL index (0, 1, 2) which backend maps to physical
+                    option.value = logicalIndex;
+                    option.text = `Camera ${logicalIndex + 1} (ID: ${physIndex})`;
+                    if (logicalIndex === 0) option.selected = true;
+                    cameraSelect.appendChild(option);
+                });
+
+            } catch (err) {
+                console.error("Error fetching cameras:", err);
+                cameraSelect.innerHTML = '<option disabled>Error loading cameras</option>';
+            }
+        }
+
+        // 2. Handle Change
+        cameraSelect.addEventListener('change', function () {
+            const selectedIndex = this.value;
+            fetch('/api/camera/set', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ camera_index: selectedIndex })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    console.log(data);
+                    // Force reload image to reconnect stream with new camera source
+                    const img = document.getElementById('video-feed');
+                    img.src = "{{ url_for('video_feed') }}?t=" + new Date().getTime();
+                })
+                .catch(err => console.error(err));
+        });
+
+        // Initialize Camera Discovery
+        // getCameras(); // Removed auto-call for modal flow
+
         // --- Navigation Logic ---
         function switchTab(tabName) {
             const views = {
@@ -207,6 +467,8 @@
                 monthly: document.getElementById('btn-monthly')
             };
             const dateDropdown = document.getElementById('header-date-dropdown');
+            const cameraSelector = document.getElementById('camera-selector-container');
+            const monthMenu = document.getElementById('month-menu');
 
             // Reset
             Object.values(views).forEach(el => el.classList.add('hidden'));
@@ -214,12 +476,22 @@
                 btn.classList.remove('text-blue-500', 'border-r-4', 'border-blue-500');
                 btn.classList.add('text-gray-400');
             });
+            monthMenu.classList.add('hidden'); // Always close menu on switch
 
             // Activate
             if (views[tabName]) views[tabName].classList.remove('hidden');
             if (buttons[tabName]) {
                 buttons[tabName].classList.add('text-blue-500', 'border-r-4', 'border-blue-500');
                 buttons[tabName].classList.remove('text-gray-400');
+            }
+
+            // UI Visibility Logic
+            if (tabName === 'camera') {
+                cameraSelector.classList.remove('hidden');
+                cameraSelector.classList.add('flex');
+            } else {
+                cameraSelector.classList.add('hidden');
+                cameraSelector.classList.remove('flex');
             }
 
             // Dropdown Logic
@@ -230,16 +502,119 @@
             }
         }
 
+        // --- Month Dropdown Logic ---
+        async function loadMonthList() {
+            try {
+                const response = await fetch('/api/month-list');
+                const data = await response.json();
+                const menu = document.getElementById('month-menu');
+                menu.innerHTML = ''; // Clear existing
+
+                if (data.months.length > 0) {
+                    // Select first month by default if not set
+                    const firstMonth = data.months[0];
+                    document.getElementById('selected-month').textContent = firstMonth.label;
+
+                    // Create menu items
+                    data.months.forEach(m => {
+                        const a = document.createElement('a');
+                        a.href = "#";
+                        a.className = "block px-4 py-2 text-sm text-gray-600 hover:bg-blue-50 hover:text-blue-500";
+                        a.textContent = m.label;
+                        a.onclick = (e) => {
+                            e.preventDefault();
+                            selectMonth(m.value, m.label);
+                        };
+                        menu.appendChild(a);
+                    });
+
+                    // Load initial data for the latest month
+                    loadMonthlyStats(firstMonth.value);
+                }
+            } catch (err) {
+                console.error("Error loading months:", err);
+            }
+        }
+
+        function toggleMonthDropdown() {
+            const menu = document.getElementById('month-menu');
+            if (menu.classList.contains('hidden')) {
+                menu.classList.remove('hidden');
+            } else {
+                menu.classList.add('hidden');
+            }
+        }
+
+        function selectMonth(value, label) {
+            document.getElementById('selected-month').textContent = label;
+            toggleMonthDropdown();
+            loadMonthlyStats(value);
+        }
+
+        async function loadMonthlyStats(period) {
+            try {
+                console.log("Fetching stats for:", period);
+                const response = await fetch(`/api/stats/monthly?period=${period}`);
+                const data = await response.json();
+
+                // Update Cards
+                // Note: You might need to add specific IDs to the monthly stats cards in HTML to target them
+                // Assuming IDs: stat-month-in, stat-month-total, stat-month-peak
+                if (document.getElementById('stat-month-in'))
+                    document.getElementById('stat-month-in').textContent = data.summary.total_in;
+                if (document.getElementById('stat-month-total'))
+                    document.getElementById('stat-month-total').textContent = (data.summary.total_in + data.summary.total_out);
+                if (document.getElementById('stat-month-peak'))
+                    document.getElementById('stat-month-peak').textContent = data.summary.peak_visitor;
+
+                // Update Chart
+                updateMonthlyChart(data.chart_data);
+
+            } catch (err) {
+                console.error("Error loading stats:", err);
+            }
+        }
+
+        function updateMonthlyChart(chartData) {
+            // chartData is list of [day_str, in, out]
+            const labels = chartData.map(item => item[0]); // Day
+            const dataIn = chartData.map(item => item[1]);
+            const dataOut = chartData.map(item => item[2]);
+
+            monthlyChart.data.labels = labels;
+            monthlyChart.data.datasets[0].data = dataIn;
+            monthlyChart.data.datasets[1].data = dataOut;
+            monthlyChart.update();
+        }
+
+        // Close dropdown when clicking outside
+        window.addEventListener('click', function (e) {
+            const btn = document.getElementById('header-date-dropdown');
+            const menu = document.getElementById('month-menu');
+            if (!btn.contains(e.target) && !menu.contains(e.target)) {
+                menu.classList.add('hidden');
+            }
+        });
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            getCameras();
+            loadMonthList();
+
+            // Initial stat pull
+            setInterval(updateStats, 1000);
+        });
+
         // --- Chart Configurations ---
-        
+
         // 1. Pie Chart
         const ctxPie = document.getElementById('pieChart').getContext('2d');
-        new Chart(ctxPie, {
+        window.pieChart = new Chart(ctxPie, {
             type: 'pie',
             data: {
                 labels: ['Come', 'Leave'],
                 datasets: [{
-                    data: [75, 25],
+                    data: [0, 0], // Init with 0
                     backgroundColor: ['#14b8a6', '#facc15'],
                     borderWidth: 0,
                     hoverOffset: 4
@@ -255,16 +630,17 @@
 
         // 2. Daily Chart
         const ctxDaily = document.getElementById('dailyChart').getContext('2d');
-        const dailyLabels = ['06.00', '07.00', '08.00', '09.00', '10.00', '11.00', '12.00', '13.00', '14.00', '15.00', '16.00', '17.00', '18.00'];
-        
-        new Chart(ctxDaily, {
+        // Initial empty state
+        const dailyLabels = Array.from({ length: 24 }, (_, i) => (i < 10 ? '0' + i : i) + '.00');
+
+        window.dailyChart = new Chart(ctxDaily, {
             type: 'line',
             data: {
                 labels: dailyLabels,
                 datasets: [
                     {
                         label: 'in',
-                        data: [12, 12, 18, 17, 16, 19, 16, 13, 16, 18, 14, 10, 14, 19],
+                        data: Array(24).fill(0),
                         borderColor: '#3b82f6',
                         backgroundColor: 'rgba(59, 130, 246, 0.1)',
                         borderWidth: 2,
@@ -275,7 +651,7 @@
                     },
                     {
                         label: 'out',
-                        data: [7, 12, 10, 13, 11, 13, 14, 12.5, 13, 13.5, 10, 5, 9, 14.5],
+                        data: Array(24).fill(0),
                         borderColor: '#f97316',
                         backgroundColor: 'rgba(249, 115, 22, 0.1)',
                         borderWidth: 2,
@@ -289,73 +665,108 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        align: 'end',
-                        labels: { usePointStyle: true, boxWidth: 10 }
-                    }
-                },
                 scales: {
                     y: {
-                        beginAtZero: false, min: 5, max: 30,
-                        grid: { color: '#f3f4f6' },
-                        ticks: { stepSize: 5, font: { size: 10 } }
+                        beginAtZero: true,
+                        grid: { display: true, borderDash: [2, 4], color: '#f3f4f6' },
+                        ticks: { font: { size: 10 }, color: '#9ca3af' }
                     },
                     x: {
                         grid: { display: false },
-                        ticks: { 
-                            font: { size: 10 },
-                            callback: function(val) {
-                                const label = this.getLabelForValue(val);
-                                return ['07.00', '12.00', '16.00'].includes(label) ? label : '';
-                            }
-                        }
+                        ticks: { font: { size: 10 }, color: '#9ca3af', maxTicksLimit: 8 }
                     }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                        titleColor: '#1f2937',
+                        bodyColor: '#4b5563',
+                        borderColor: '#e5e7eb',
+                        borderWidth: 1,
+                        padding: 10,
+                        displayColors: true
+                    }
+                },
+                interaction: {
+                    mode: 'nearest',
+                    axis: 'x',
+                    intersect: false
                 }
             }
         });
 
         // 3. Monthly Chart
         const ctxMonthly = document.getElementById('monthlyChart').getContext('2d');
-        const labelsMonthly = Array.from({length: 31}, (_, i) => i + 1);
-        
-        new Chart(ctxMonthly, {
+        const labelsMonthly = Array.from({ length: 31 }, (_, i) => i + 1);
+
+        window.monthlyChart = new Chart(ctxMonthly, {
             type: 'line',
             data: {
                 labels: labelsMonthly,
-                datasets: [{
-                    label: 'visitor',
-                    data: [12, 12, 12, 15, 18, 17.5, 17, 16.5, 16, 15.5, 17, 18, 19, 17, 15, 14, 13, 14, 15, 16, 17, 18, 16, 14, 12, 10, 12, 14, 16, 18, 20],
-                    borderColor: '#3b82f6',
-                    backgroundColor: '#3b82f6',
-                    borderWidth: 2,
-                    pointRadius: 0,
-                    pointHoverRadius: 4,
-                    tension: 0.1
-                }]
+                datasets: [
+                    {
+                        label: 'in',
+                        data: Array(31).fill(0),
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 3,
+                        pointHoverRadius: 6
+                    },
+                    {
+                        label: 'out',
+                        data: Array(31).fill(0),
+                        borderColor: '#f97316',
+                        backgroundColor: 'rgba(249, 115, 22, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 3,
+                        pointHoverRadius: 6
+                    }
+                ]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        align: 'end',
-                        labels: { usePointStyle: true, boxWidth: 8, boxHeight: 1 }
-                    }
-                },
                 scales: {
                     y: {
-                        beginAtZero: false, min: 5, max: 30,
-                        grid: { color: '#f3f4f6' },
-                        ticks: { stepSize: 5, font: { size: 10 } }
+                        beginAtZero: true,
+                        grid: { display: true, borderDash: [2, 4], color: '#f3f4f6' },
+                        ticks: { font: { size: 10 }, color: '#9ca3af' }
                     },
                     x: {
                         grid: { display: false },
-                        ticks: { font: { size: 10 }, maxRotation: 0 }
+                        ticks: { font: { size: 10 }, color: '#9ca3af', maxTicksLimit: 10 }
                     }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                        titleColor: '#1f2937',
+                        bodyColor: '#4b5563',
+                        borderColor: '#e5e7eb',
+                        borderWidth: 1,
+                        padding: 10,
+                        displayColors: true
+                    }
+                },
+                interaction: {
+                    mode: 'nearest',
+                    axis: 'x',
+                    intersect: false
                 }
             }
         });
     </script>
 </body>
+
 </html>
