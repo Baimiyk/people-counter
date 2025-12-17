@@ -1,300 +1,464 @@
-# python-counter/app.py
 import cv2
 import time
-import sqlite3
+from datetime import datetime
 import numpy as np
-from datetime import datetime, timedelta
-from flask import Flask, render_template, Response, jsonify, request
-from centroid_tracker import CentroidTracker
+import os
+import time
+import imutils 
+import threading
+from flask import Flask, render_template, Response, request
 
-# ================= KONFIGURASI UMUM =================
+# Import modules
+try:
+    from centroid_tracker import CentroidTracker
+    from database_manager import DatabaseManager
+except ImportError as e:
+    print(f"[ERROR] Modul tidak ditemukan: {e}")
+    exit()
+
 app = Flask(__name__)
 
-# Config YOLO
-YOLO_CFG = "models/yolov3-tiny.cfg"
-YOLO_WEIGHTS = "models/yolov3-tiny.weights"
-COCO_NAMES = "models/coco.names"
+class PeopleCounter:
+    def __init__(self):
+        # --- KONFIGURASI ---
+        self.YOLO_CFG = "models/yolov4-tiny.cfg"
+        self.YOLO_WEIGHTS = "models/yolov4-tiny.weights"
+        
+        # Camera Scanning
+        self.valid_cameras = []
+        self.scan_valid_cameras()
+        
+        if self.valid_cameras:
+            self.VIDEO_SOURCE = self.valid_cameras[0]
+        else:
+            self.VIDEO_SOURCE = 0 # Fallback
+            
+        print(f"[INFO] Valid cameras found: {self.valid_cameras}")
+        print(f"[INFO] Using initial camera: {self.VIDEO_SOURCE}")
+        
+        # Settings Deteksi
+        self.CONF_THRESHOLD = 0.4
+        self.NMS_THRESHOLD = 0.4
+        self.TARGET_CLASS_ID = 0  # Person
+        
+        # Settings Performa
+        self.SKIP_FRAMES = 3      # Jalankan deteksi tiap 3 frame
+        
+        # Settings Garis & Zone
+        self.LINE_RATIO = 0.5     
+        self.ZONE_BUFFER = 30     # Zona toleransi
+        
+        # State Variables
+        self.net = None
+        self.layer_names = []
+        self.H = None
+        self.W = None
+        self.frame_index = 0
+        
+        # Menyimpan bounding box terakhir agar tidak hilang saat skipping
+        self.current_rects = [] 
+        
+        # Tracking: max_disappeared=5 (sekitar 0.5 - 1 detik toleransi hilang)
+        self.tracker = CentroidTracker(max_disappeared=5, max_distance=90)
+        self.trackable_objects = {} 
+        
+        # Stats Variables (RAM Cache)
+        self.current_people = 0
+        self.total_in = 0
+        self.total_out = 0
+        
+        # Initial sync from DB
+        with DatabaseManager() as db:
+            self.refresh_counters_from_db(db)
+        
+        self.load_model()
+        
+        print(f"[INFO] Initial Status -> Di Ruangan: {self.current_people}")
 
-# Tweak performa & Akurasi
-CONF_THRESHOLD = 0.3
-NMS_THRESHOLD = 0.3
-VIDEO_SOURCE = 2
-LINE_POSITION = 0.5   # 0.5 = Tengah Layar (Sumbu X / Horizontal)
+        # Threading & locks
+        self.lock = threading.Lock()
+        self.outputFrame = None
+        self.stopped = False
+        self.cap = None
 
-DB_PATH = "people_counter.db"
-
-# Global Variables
-tracker = CentroidTracker(max_disappeared=40, max_distance=90)
-net = None
-layer_names = []
-classes = []
-H, W = None, None
-counted_ids = set()
-
-# ================= DATABASE =================
-def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS events (
-                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                 ts TEXT NOT NULL,
-                 direction TEXT NOT NULL CHECK(direction IN ('in','out')))''')
-    conn.commit()
-    conn.close()
-
-def log_event(direction):
-    ts = datetime.now().isoformat(sep=' ', timespec='seconds')
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute('INSERT INTO events (ts, direction) VALUES (?, ?)', (ts, direction))
-    conn.commit()
-    conn.close()
-    print(f"[{ts}] EVENT: {direction.upper()}")
-
-# ================= AI & DETEKSI =================
-def load_yolo_model():
-    global net, layer_names, classes
-    print("[INFO] Loading YOLO...")
-    net = cv2.dnn.readNet(YOLO_WEIGHTS, YOLO_CFG)
-    net.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)
-    net.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)
-    layer_names = net.getUnconnectedOutLayersNames()
-    with open(COCO_NAMES, 'r') as f:
-        classes = [line.strip() for line in f.readlines()]
-
-def detect_objects(frame):
-    blob = cv2.dnn.blobFromImage(frame, 1/255.0, (416, 416), swapRB=True, crop=False)
-    net.setInput(blob)
-    outputs = net.forward(layer_names)
-    
-    boxes, confidences = [], []
-    for out in outputs:
-        for detection in out:
-            scores = detection[5:]
-            classID = np.argmax(scores)
-            confidence = scores[classID]
-            # ClassID 0 adalah 'person' di COCO dataset
-            if classID == 0 and confidence > CONF_THRESHOLD:
-                box = detection[0:4] * np.array([W, H, W, H])
-                (centerX, centerY, width, height) = box.astype("int")
-                x = int(centerX - (width / 2))
-                y = int(centerY - (height / 2))
-                boxes.append([x, y, int(width), int(height)])
-                confidences.append(float(confidence))
+    def scan_valid_cameras(self):
+        print("[INFO] Scanning for valid cameras (0-10)...")
+        self.valid_cameras = []
+        for i in range(10):
+            cap = cv2.VideoCapture(i)
+            if cap.isOpened():
+                # Read a frame to be sure it works
+                ret, _ = cap.read()
+                if ret:
+                    self.valid_cameras.append(i)
+                    print(f"[INFO] Camera {i} is valid.")
+                cap.release()
                 
-    idxs = cv2.dnn.NMSBoxes(boxes, confidences, CONF_THRESHOLD, NMS_THRESHOLD)
-    rects = []
-    if len(idxs) > 0:
-        for i in idxs.flatten():
-            (x, y, w, h) = boxes[i]
-            # Filter kotak yang terlalu kecil
-            if w > 20 and h > 20: 
-                rects.append((x, y, x + w, y + h))
-    return rects
+        if not self.valid_cameras:
+             print("[WARN] No cameras found! Defaulting to [0]")
+             self.valid_cameras = [0]
 
-# ================= GENERATOR FRAME (LOGIKA BARU: KANAN-KIRI) =================
-def generate_frames():
-    global H, W, counted_ids
-    cap = cv2.VideoCapture(VIDEO_SOURCE)
-    
-    prev_frame_time = 0
 
-    while True:
-        success, frame = cap.read()
-        if not success: break
+    def load_model(self):
+        print("[INFO] Loading YOLO model...")
+        if not os.path.exists(self.YOLO_WEIGHTS) or not os.path.exists(self.YOLO_CFG):
+            print("[ERROR] File model tidak ditemukan!")
+            exit()
+            
+        self.net = cv2.dnn.readNet(self.YOLO_WEIGHTS, self.YOLO_CFG)
+        self.net.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)
+        self.net.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)
+        self.layer_names = self.net.getUnconnectedOutLayersNames()
 
-        frame = cv2.resize(frame, (640, 480))
-
-        if H is None or W is None:
-            (H, W) = frame.shape[:2]
-
-        rects = detect_objects(frame)
-        objects = tracker.update(rects)
-        tracks = tracker.get_tracks()
+    def detect_objects(self, frame):
+        blob = cv2.dnn.blobFromImage(frame, 1/255.0, (416, 416), swapRB=True, crop=False)
+        self.net.setInput(blob)
+        outputs = self.net.forward(self.layer_names)
         
-        # ------------------------------------------------------------------
-        # LOGIKA ARAH: KANAN <-> KIRI (HORIZONTAL)
-        # ------------------------------------------------------------------
+        boxes = []
+        confidences = []
         
-        # Tentukan posisi garis vertikal (berdasarkan Lebar/Width)
-        line_pos = int(W * LINE_POSITION) 
+        for out in outputs:
+            for detection in out:
+                scores = detection[5:]
+                classID = np.argmax(scores)
+                confidence = scores[classID]
+                
+                if classID == self.TARGET_CLASS_ID and confidence > self.CONF_THRESHOLD:
+                    box = detection[0:4] * np.array([self.W, self.H, self.W, self.H])
+                    (centerX, centerY, width, height) = box.astype("int")
+                    x = int(centerX - (width / 2))
+                    y = int(centerY - (height / 2))
+                    boxes.append([x, y, int(width), int(height)])
+                    confidences.append(float(confidence))
+                    
+        idxs = cv2.dnn.NMSBoxes(boxes, confidences, self.CONF_THRESHOLD, self.NMS_THRESHOLD)
         
-        # Gambar garis vertikal default (Kuning) -> dari (x,0) ke (x,H)
-        cv2.line(frame, (line_pos, 0), (line_pos, H), (0, 255, 255), 2)
+        final_rects = []
+        if len(idxs) > 0:
+            idxs = idxs.flatten()
+            for i in idxs:
+                (x, y, w, h) = boxes[i]
+                final_rects.append((x, y, x + w, y + h))
+                
+        return final_rects
+
+    def resize_frame(self, frame, width=800):
+        (h, w) = frame.shape[:2]
+        r = width / float(w)
+        dim = (width, int(h * r))
+        return cv2.resize(frame, dim, interpolation=cv2.INTER_AREA)
+
+    def refresh_counters_from_db(self, db_instance):
+        # Update dengan method baru dari monitoring.db
+        current, total_in, total_out = db_instance.get_todays_stats()
+        self.current_people = current
+        self.total_in = total_in
+        self.total_out = total_out
+
+    def get_error_frame(self, message="NO SIGNAL"):
+        # Buat frame hitam
+        frame = np.zeros((480, 640, 3), dtype=np.uint8)
+        # Tulis pesan error
+        cv2.putText(frame, message, (180, 240), cv2.FONT_HERSHEY_SIMPLEX, 
+                    1, (0, 0, 255), 2, cv2.LINE_AA)
+        return frame
+
+    def start_processing(self):
+        # Start a thread to read frames from the video stream
+        t = threading.Thread(target=self.process_video, args=())
+        t.daemon = True
+        t.start()
+        print("[INFO] Background video processing started.")
+
+    def process_video(self):
+        self.cap = cv2.VideoCapture(self.VIDEO_SOURCE)
         
-        for (objectID, centroid) in objects.items():
-            cX, cY = centroid
-            cv2.circle(frame, (cX, cY), 4, (0, 255, 0), -1)
-            cv2.putText(frame, f"ID {objectID}", (cX, cY - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+        # Dedicated DB connection for this thread
+        db = DatabaseManager()
 
-            history = tracks.get(objectID, [])
-            if len(history) >= 2 and objectID not in counted_ids:
-                # Ambil koordinat X (index 0)
-                prev_x = history[0][0] 
-                curr_x = history[-1][0]
+        prev_frame_time = 0
+        new_frame_time = 0
 
-                # LOGIKA: Kanan ke Kiri (Right to Left) -> IN
-                # Kanan (X Besar) melewati garis ke Kiri (X Kecil)
-                if prev_x > line_pos and curr_x <= line_pos:  
-                    log_event('in')
-                    counted_ids.add(objectID)
-                    cv2.line(frame, (line_pos, 0), (line_pos, H), (0, 255, 0), 5) # Hijau
+        while not self.stopped:
+            # Reconnect Logic
+            if self.cap is None or not self.cap.isOpened():
+                with self.lock:
+                    self.outputFrame = self.get_error_frame(f"CONNECTING {self.VIDEO_SOURCE}...")
+                time.sleep(2)
+                self.cap = cv2.VideoCapture(self.VIDEO_SOURCE)
+                continue
 
-                # LOGIKA: Kiri ke Kanan (Left to Right) -> OUT
-                # Kiri (X Kecil) melewati garis ke Kanan (X Besar)
-                elif prev_x < line_pos and curr_x >= line_pos: 
-                    log_event('out')
-                    counted_ids.add(objectID)
-                    cv2.line(frame, (line_pos, 0), (line_pos, H), (0, 0, 255), 5) # Merah
-        
-        # Hitung FPS
-        new_frame_time = time.time()
-        fps = 1/(new_frame_time-prev_frame_time)
-        prev_frame_time = new_frame_time
-        cv2.putText(frame, f"FPS: {int(fps)}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
+            success, frame = self.cap.read()
+            if not success:
+                self.cap.release()
+                with self.lock:
+                    self.outputFrame = self.get_error_frame("CAMERA ERROR")
+                time.sleep(1)
+                continue
 
-        ret, buffer = cv2.imencode('.jpg', frame)
-        yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
-        
-        if len(counted_ids) > 1000: counted_ids.clear()
+            # --- Processing ---
+            frame = self.resize_frame(frame, width=800)
+            if self.W is None or self.H is None:
+                (self.H, self.W) = frame.shape[:2]
 
-# ================= ROUTES API & WEB =================
+            # 1. DETEKSI & TRACKING
+            if self.frame_index % self.SKIP_FRAMES == 0:
+                self.current_rects = self.detect_objects(frame)
+                objects = self.tracker.update(self.current_rects)
+            else:
+                objects = self.tracker.objects
+
+            # 2. CONFIG LINE & ZONES
+            line_y = int(self.H * self.LINE_RATIO)
+            zone_upper = line_y - self.ZONE_BUFFER 
+            zone_lower = line_y + self.ZONE_BUFFER 
+
+            # 3. GAMBAR VISUALISASI
+            cv2.line(frame, (0, line_y), (self.W, line_y), (0, 255, 255), 2)
+            cv2.line(frame, (0, zone_upper), (self.W, zone_upper), (0, 100, 255), 1)
+            cv2.line(frame, (0, zone_lower), (self.W, zone_lower), (0, 100, 255), 1)
+
+            for (x, y, x2, y2) in self.current_rects:
+                cv2.rectangle(frame, (x, y), (x2, y2), (0, 255, 0), 1)
+
+            # 4. LOGIKA COUNTING
+            for (objectID, centroid) in objects.items():
+                cX, cY = centroid
+                
+                if objectID not in self.trackable_objects:
+                    if cY < zone_upper: start_pos = "UP"
+                    elif cY > zone_lower: start_pos = "DOWN"
+                    else: start_pos = "PENDING"
+                        
+                    self.trackable_objects[objectID] = {
+                        "start_region": start_pos, 
+                        "counted": False,
+                        "trace": []
+                    }
+                
+                track_info = self.trackable_objects[objectID]
+                track_info["trace"].append(centroid)
+                if len(track_info["trace"]) > 30: track_info["trace"].pop(0)
+
+                if track_info["start_region"] == "PENDING":
+                    if cY < zone_upper: track_info["start_region"] = "UP"
+                    elif cY > zone_lower: track_info["start_region"] = "DOWN"
+                
+                start_region = track_info["start_region"]
+                current_region = "MIDDLE"
+                if cY < zone_upper: current_region = "UP"
+                elif cY > zone_lower: current_region = "DOWN"
+
+                if not track_info["counted"] and start_region != "PENDING":
+                    if start_region == "DOWN" and current_region == "UP":
+                        print(f"[COUNT] ID {objectID} Valid IN")
+                        db.log_event('IN', objectID)
+                        self.refresh_counters_from_db(db)
+                        track_info["counted"] = True
+                        cv2.line(frame, (0, line_y), (self.W, line_y), (255, 255, 255), 3)
+
+                    elif start_region == "UP" and current_region == "DOWN":
+                        print(f"[COUNT] ID {objectID} Valid OUT")
+                        db.log_event('OUT', objectID)
+                        self.refresh_counters_from_db(db)
+                        track_info["counted"] = True
+                        cv2.line(frame, (0, line_y), (self.W, line_y), (255, 255, 255), 3)
+
+                # Drawing Info
+                if len(track_info["trace"]) > 1:
+                    pts = np.array(track_info["trace"], np.int32).reshape((-1, 1, 2))
+                    cv2.polylines(frame, [pts], False, (0, 165, 255), 2)
+
+                status_text = f"ID {objectID} [{start_region}]"
+                color = (0, 255, 0)
+                if start_region == "PENDING": color = (0, 165, 255)
+                elif track_info["counted"]: 
+                     color = (255, 255, 0)
+                     status_text = f"ID {objectID} [COUNTED]"
+                
+                cv2.putText(frame, status_text, (cX - 10, cY - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+                cv2.circle(frame, (cX, cY), 4, color, -1)
+
+            # Cleanup Memory
+            active_ids = set(objects.keys())
+            tracked_ids = list(self.trackable_objects.keys())
+            for tid in tracked_ids:
+                if tid not in active_ids: del self.trackable_objects[tid]
+
+            # 5. TAMPILAN HUD
+            cv2.rectangle(frame, (0, 0), (280, 140), (0, 0, 0), -1)
+            cv2.putText(frame, f"Masuk (In): {self.total_in}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+            cv2.putText(frame, f"Keluar (Out): {self.total_out}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+            cv2.putText(frame, f"Di Ruangan: {self.current_people}", (10, 95), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
+            
+            new_frame_time = time.time()
+            fps = 1/(new_frame_time - prev_frame_time) if (new_frame_time - prev_frame_time) > 0 else 0
+            prev_frame_time = new_frame_time
+            
+            cv2.putText(frame, f"FPS: {int(fps)}", (10, 125), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+
+            # Update Global Frame
+            with self.lock:
+                self.outputFrame = frame.copy()
+            
+            self.frame_index += 1
+            
+        # Clean up DB when thread stops
+        db.close()
+
+    def generate_frames(self):
+        # Generator for Flask
+        while True:
+            with self.lock:
+                if self.outputFrame is None:
+                    continue
+                
+                # Encode current frame
+                (flag, encodedImage) = cv2.imencode(".jpg", self.outputFrame)
+                if not flag: continue
+            
+            yield(b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + 
+                  bytearray(encodedImage) + b'\r\n')
+
+    def change_camera(self, logical_index):
+        try:
+            logical_index = int(logical_index)
+            if 0 <= logical_index < len(self.valid_cameras):
+                physical_index = self.valid_cameras[logical_index]
+                print(f"[INFO] Ganti kamera ke logical {logical_index} -> physical {physical_index}")
+                
+                # Close existing
+                if self.cap and self.cap.isOpened():
+                    self.cap.release()
+                
+                # Set source - The background thread loop will pick this up
+                self.VIDEO_SOURCE = physical_index
+                self.cap = None 
+            else:
+                print(f"[ERROR] Invalid logical camera index: {logical_index}")
+        except ValueError:
+             print(f"[ERROR] Invalid index format: {logical_index}")
+
+    def __del__(self):
+        self.stopped = True
+        if hasattr(self, 'cap') and self.cap and self.cap.isOpened():
+            self.cap.release()
+
+# Initialize Global Object for now (Simple Single Threaded App)
+pc = PeopleCounter()
+
+# Start background thread
+pc.start_processing()
+
 @app.route('/')
-def index(): return render_template('index.html')
+def index():
+    return render_template('index.html')
 
 @app.route('/video_feed')
-def video_feed(): return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+def video_feed():
+    return Response(pc.generate_frames(),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
 
-@app.route("/api/logs")
-def api_logs():
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute('SELECT id, ts, direction FROM events ORDER BY id DESC LIMIT 50')
-    rows = [{"id": r[0], "ts": r[1], "direction": r[2]} for r in c.fetchall()]
-    conn.close()
-    return jsonify(rows)
-
-@app.route("/api/daily") 
-def api_daily():
-    try:
-        year = request.args.get("year", datetime.now().year)
-        month = int(request.args.get("month", datetime.now().month))
-        conn = sqlite3.connect(DB_PATH)
-        c = conn.cursor()
-        c.execute("SELECT date(ts), SUM(CASE WHEN direction='in' THEN 1 ELSE 0 END), SUM(CASE WHEN direction='out' THEN 1 ELSE 0 END) FROM events WHERE strftime('%Y', ts)=? AND strftime('%m', ts)=? GROUP BY date(ts)", (str(year), f"{month:02d}"))
-        rows = c.fetchall()
-        conn.close()
-        return jsonify({"days": [r[0] for r in rows], "in": [r[1] for r in rows], "out": [r[2] for r in rows]})
-    except Exception as e: return jsonify({"error": str(e)}), 500
-
-@app.route("/api/monthly") 
-def api_monthly():
-    try:
-        year = request.args.get("year", datetime.now().year)
-        month = int(request.args.get("month", datetime.now().month))
-        conn = sqlite3.connect(DB_PATH)
-        c = conn.cursor()
-        c.execute("SELECT SUM(CASE WHEN direction='in' THEN 1 ELSE 0 END), SUM(CASE WHEN direction='out' THEN 1 ELSE 0 END) FROM events WHERE strftime('%Y', ts)=? AND strftime('%m', ts)=?", (str(year), f"{month:02d}"))
-        row = c.fetchone()
-        conn.close()
-        return jsonify({"total_in": row[0] or 0, "total_out": row[1] or 0})
-    except Exception as e: return jsonify({"error": str(e)}), 500
-
-@app.route("/api/hourly")
-def api_hourly():
-    try:
-        today_str = datetime.now().strftime('%Y-%m-%d')
-        conn = sqlite3.connect(DB_PATH)
-        c = conn.cursor()
-        c.execute("""
-            SELECT strftime('%H', ts), 
-                   SUM(CASE WHEN direction='in' THEN 1 ELSE 0 END), 
-                   SUM(CASE WHEN direction='out' THEN 1 ELSE 0 END) 
-            FROM events 
-            WHERE date(ts) = ? 
-            GROUP BY strftime('%H', ts)
-        """, (today_str,))
-        rows = {r[0]: r for r in c.fetchall()} 
-        conn.close()
-
-        labels, data_in, data_out = [], [], []
-        for i in range(24):
-            hour_key = f"{i:02d}"
-            labels.append(f"{hour_key}:00")
-            if hour_key in rows:
-                data_in.append(rows[hour_key][1])
-                data_out.append(rows[hour_key][2])
-            else:
-                data_in.append(0)
-                data_out.append(0)
+@app.route('/api/stats')
+def stats():
+    # Use context manager for safe DB access per request
+    with DatabaseManager() as db:
+        # Get Hourly Data for Daily Chart
+        hourly_raw = db.get_daily_stats_hourly() # [(hour, in, out), ...]
         
-        return jsonify({"labels": labels, "in": data_in, "out": data_out})
-    except Exception as e: return jsonify({"error": str(e)}), 500
+        # Also refresh current counts in case they drifted (optional, but good for consistency)
+        # Note: pc.current_people is updated by bg thread, which is fine for "live" view.
+        # But if we want exact DB sync:
+        current, total_in, total_out = db.get_todays_stats()
+    
+    # Initialize 24 hours with 0
+    hours = [f"{i:02d}.00" for i in range(24)]
+    data_in = [0] * 24
+    data_out = [0] * 24
+    
+    for row in hourly_raw:
+        h = int(row[0])
+        if 0 <= h < 24:
+            data_in[h] = row[1]
+            data_out[h] = row[2]
 
-@app.route("/api/weekly")
-def api_weekly():
-    try:
-        today = datetime.now()
-        conn = sqlite3.connect(DB_PATH)
-        c = conn.cursor()
-        labels, data_in, data_out = [], [], []
-        
-        for i in range(6, -1, -1):
-            day = today - timedelta(days=i)
-            day_str = day.strftime('%Y-%m-%d')
-            day_label = day.strftime('%d/%m')
-            
-            c.execute("""
-                SELECT SUM(CASE WHEN direction='in' THEN 1 ELSE 0 END), 
-                       SUM(CASE WHEN direction='out' THEN 1 ELSE 0 END) 
-                FROM events WHERE date(ts) = ?
-            """, (day_str,))
-            row = c.fetchone()
-            
-            labels.append(day_label)
-            data_in.append(row[0] or 0)
-            data_out.append(row[1] or 0)
-            
-        conn.close()
-        return jsonify({"labels": labels, "in": data_in, "out": data_out})
-    except Exception as e: return jsonify({"error": str(e)}), 500
+    return {
+        "current_people": current, # Use fresh DB value
+        "total_in": total_in,
+        "total_out": total_out,
+        "hourly_chart": {
+            "labels": hours,
+            "data_in": data_in,
+            "data_out": data_out
+        }
+    }
 
-@app.route("/api/yearly")
-def api_yearly():
-    try:
-        year_str = str(datetime.now().year)
-        conn = sqlite3.connect(DB_PATH)
-        c = conn.cursor()
-        
-        c.execute("""
-            SELECT strftime('%m', ts), 
-                   SUM(CASE WHEN direction='in' THEN 1 ELSE 0 END), 
-                   SUM(CASE WHEN direction='out' THEN 1 ELSE 0 END) 
-            FROM events 
-            WHERE strftime('%Y', ts) = ? 
-            GROUP BY strftime('%m', ts)
-        """, (year_str,))
-        rows = {r[0]: r for r in c.fetchall()}
-        conn.close()
+@app.route('/api/month-list')
+def get_month_list():
+    with DatabaseManager() as db:
+        months = db.get_available_months()
+    
+    formatted_months = []
+    for m in months:
+        dt = datetime.strptime(m, "%Y-%m")
+        display_name = dt.strftime("%B %Y")
+        formatted_months.append({"value": m, "label": display_name})
+    return {"months": formatted_months}
 
-        month_names = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
-        labels, data_in, data_out = [], [], []
-        
-        for i in range(1, 13):
-            m_key = f"{i:02d}"
-            labels.append(month_names[i-1])
-            if m_key in rows:
-                data_in.append(rows[m_key][1])
-                data_out.append(rows[m_key][2])
-            else:
-                data_in.append(0)
-                data_out.append(0)
+@app.route('/api/stats/monthly')
+def get_monthly_dashboard():
+    period = request.args.get('period') # Format YYYY-MM
+    if not period:
+        period = datetime.now().strftime("%Y-%m")
+    
+    year, month = map(int, period.split('-'))
+    
+    with DatabaseManager() as db:
+        # Get daily breakdown for the month
+        daily_stats = db.get_monthly_stats(month, year)
+    
+    # Calculate aggregates
+    total_in_month = sum(row[1] for row in daily_stats) # row: (day, in, out)
+    total_out_month = sum(row[2] for row in daily_stats)
+    
+    # Find peak day
+    peak_visitor = 0
+    if daily_stats:
+        peak_visitor = max(row[1] for row in daily_stats)
 
-        return jsonify({"labels": labels, "in": data_in, "out": data_out})
-    except Exception as e: return jsonify({"error": str(e)}), 500
+    return {
+        "period": period,
+        "summary": {
+            "total_in": total_in_month,
+            "total_out": total_out_month,
+            "peak_visitor": peak_visitor
+        },
+        "chart_data": daily_stats # [(day, in, out), ...]
+    }
 
-if __name__ == '__main__':
-    init_db()
-    load_yolo_model()
-    app.run(host='0.0.0.0', port=5000, debug=False, threaded=True)
+@app.route('/api/cameras')
+def get_cameras():
+    # Return list of valid physical camera indices
+    return {"cameras": pc.valid_cameras}
+
+@app.route('/api/camera/set', methods=['POST'])
+def set_camera():
+    data = request.json
+    camera_index = data.get('camera_index', 0)
+    pc.change_camera(camera_index)
+    return {"status": "ok", "message": f"Camera switched request to index {camera_index}"}
+
+def cleanup(sig, frame):
+    print("[INFO] Shutting down...")
+    pc.stopped = True
+    if pc.cap and pc.cap.isOpened():
+        pc.cap.release()
+    sys.exit(0)
+
+import signal
+import sys
+signal.signal(signal.SIGINT, cleanup)
+
+if __name__ == "__main__":
+    app.run(host='0.0.0.0', port=5000, debug=True, threaded=True, use_reloader=False)

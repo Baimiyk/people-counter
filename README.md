@@ -1,317 +1,143 @@
-# 📊 People Counter – Python + ESP32 + YOLO + SQLite + Dashboard
+# 📊 Smart People Counter & Analytics Dashboard
 
-Sistem ini dibuat untuk menghitung jumlah pengunjung pada suatu ruangan menggunakan kamera (webcam atau ESP32-CAM), menyimpan data ke SQLite, dan menampilkannya pada dashboard web berbasis Flask.
+> **A Production-Ready AI System for Real-time Crowd Monitoring**
+> *Powered by YOLOv4, Flask, and Responsive Charts*
 
----
-
-# ✨ Fitur Utama
-
-* Deteksi manusia menggunakan YOLOv3-tiny + OpenCV
-* Tracking objek dengan Centroid Tracker (anti double-count)
-* Deteksi arah masuk/keluar dengan line‑crossing
-* Penyimpanan data harian & bulanan ke SQLite
-* Dashboard real-time Flask + Chart.js
-* Integrasi opsional ESP32 / ESP32-CAM
-* Struktur modular, mudah dikembangkan
+## 📖 Ringkasan Project
+Aplikasi ini adalah sistem penghitung pengunjung cerdas yang menggabungkan kekuatan **Computer Vision** (AI) dengan **Web Dashboard** modern. Sistem ini mampu mendeteksi manusia secara real-time dari feed kamera CCTV atau webcam, melacak pergerakan mereka (masuk/keluar), dan menyajikan statistik analitik melalui antarmuka website yang interaktif dan responsif.
 
 ---
 
-# 📂 Struktur Folder Project
+## 🔬 Penjelasan Ilmiah (The Science Behind It)
 
-```
-people-counter-esp32/
-│
-├── python-counter/
-│   ├── people_counter.py
-│   ├── centroid_tracker.py
-│   ├── dashboard.py
-│   ├── requirements.txt
-│   ├── templates/
-│   │   └── index.html
-│   ├── models/
-│   │   ├── yolov3-tiny.cfg
-│   │   ├── yolov3-tiny.weights
-│   │   └── coco.names
-│   └── README.md
-│
-├── esp32/
-│   ├── esp32_http_receiver.py
-│   └── README.md
-│
-├── LICENSE
-└── README.md
-```
+Aplikasi ini menerapkan beberapa konsep utama dalam bidang Computer Vision dan Data Engineering:
+
+### 1. Object Detection (YOLOv4-tiny)
+Kami menggunakan algoritma **YOLO (You Only Look Once)**, spesifiknya versi *tiny* untuk performa maksimal pada CPU.
+*   **Cara Kerja**: Citra dibagi menjadi grid. Neural Network memprediksi *bounding box* dan probabilitas kelas (Person) untuk setiap grid secara simultan.
+*   **Keunggulan**: Sangat cepat (real-time) dibandingkan algoritma R-CNN tradisional.
+
+### 2. Object Tracking (Centroid Tracking)
+Deteksi objek hanya terjadi per-frame. Untuk mengetahui bahwa orang di frame ke-10 adalah orang yang sama di frame ke-11, kami menggunakan algoritma **Centroid Tracking**.
+*   **Logika**: Menghitung titik tengah (centroid) dari setiap bounding box.
+*   **Euclidean Distance**: Sistem menghitung jarak antara centroid baru dan lama. Jika jaraknya dekat, ID yang sama dipertahankan. Inilah yang memungkinkan sistem "mengingat" identitas objek.
+
+### 3. Vector Cross Product & Line Crossing
+Untuk menghitung "Masuk" atau "Keluar", sistem tidak hanya melihat posisi, tapi **vektor pergerakan**:
+*   Sebuah garis virtual ditarik di tengah layar.
+*   Sistem memantau perubahan koordinat centroid (Y-axis) relatif terhadap garis ini.
+*   Ketika centroid berpindah dari sisi positif ke negatif (atau sebaliknya) melewati garis, event `IN` atau `OUT` dicatatkan.
 
 ---
 
-# 🚀 Instalasi & Setup
+## 🗄️ Desain Database (ERD)
 
-## 1️⃣ Persiapan Lingkungan
+Sistem ini menggunakan **SQLite** dengan pendekatan *Granular Event Logging* untuk akurasi data real-time.
 
-Pastikan Python versi 3.9–3.12 sudah terpasang.
+```mermaid
+erDiagram
+    LOCATIONS ||--o{ EVENTS : "logs"
+    LOCATIONS ||--o{ DAILY_SUMMARY : "tracks daily"
 
+    LOCATIONS {
+        int id PK
+        string name "e.g. Main Room"
+        string description
+        datetime created_at
+    }
+
+    EVENTS {
+        int id PK
+        int location_id FK
+        int object_id "Tracking ID from Camera"
+        string direction "IN or OUT"
+        datetime timestamp "Y-m-d H:M:S"
+        text note "Granular Data for Hourly Charts"
+    }
+
+    DAILY_SUMMARY {
+        int id PK
+        int location_id FK
+        date date "Y-m-d"
+        int total_in "Aggregated Total"
+        int total_out "Aggregated Total"
+        int peak_occupancy "Max people at once"
+    }
 ```
-python --version
-```
+
+*   **Tabel `events`**: Mencatat setiap detik seseorang lewat. Ini memungkinkan kita membuat **Day Chart** yang update setiap detik.
+*   **Tabel `daily_summary`**: Menyimpan rekapitulasi untuk performa kueri jangka panjang (Bulanan/Tahunan).
 
 ---
 
-## 2️⃣ Clone Repository
+## ✨ Fitur Utama
 
-```
-git clone https://github.com/<username>/<repo>.git
-cd <repo>/python-counter
-```
+### 🧠 **Intelligent Core**
+*   **Auto-Recovery**: Kamera otomatis reconnect jika sinyal hilang.
+*   **Background Processing**: Pemrosesan video berjalan di thread terpisah, sehingga tidak akan berhenti meskipun tab browser di-minimize.
+*   **Graceful Shutdown**: Menutup koneksi database dan kamera dengan aman saat aplikasi dimatikan.
 
----
-
-## 3️⃣ Membuat Virtual Environment
-
-```
-python -m venv venv
-```
-
-### Mengaktifkan Virtual Environment
-
-**Windows:**
-
-```
-venv\Scripts\activate
-```
-
-**Linux:**
-
-```
-source venv/bin/activate
-```
+### 📊 **Premium Dashboard**
+*   **Real-time Interactivity**: Grafik Day Chart update otomatis (polling 1 detik) tanpa refresh halaman.
+*   **Multi-Chart**:
+    *   **Day Chart**: Traffic per jam (00-24).
+    *   **Monthly Chart**: Kalender heatmap pengunjung harian.
+    *   **Pie Chart**: Proporsi visitor Masuk vs Keluar.
+*   **Camera Switcher**: Ganti sumber kamera (Webcam/CCTV) langsung dari UI.
 
 ---
 
-## 4️⃣ Install Dependencies
+## 🚀 Panduan Instalasi
 
+### 1️⃣ Persiapan
+Pastikan Python 3.9+ sudah terinstall.
+
+```bash
+# 1. Clone Repository
+git clone <repo-url>
+cd people-counter/python-counter
+
+# 2. Buat Virtual Environment
+python3 -m venv venv
+source venv/bin/activate  # Linux/Mac
+# venv\Scripts\activate   # Windows
+
+# 3. Install Dependencies
+pip install -r requirements.txt
 ```
-pip install -r python-counter/requirements.txt
-```
+
+### 2️⃣ Model YOLO
+Pastikan file weights ada di folder `models/`:
+*   `yolov4-tiny.weights`
+*   `yolov4-tiny.cfg`
+*   `coco.names`
 
 ---
 
-## 5️⃣ Download Model YOLO (pastikan di models/ terlebih dahulu)
+## 🖥️ Cara Menggunakan
 
-Pastikan file berikut ada di folder `models/`:
+1.  **Jalankan Server**:
+    ```bash
+    python app.py
+    ```
 
-```
-yolov3-tiny.cfg
-yolov3-tiny.weights
-coco.names
-```
+2.  **Buka Dashboard**:
+    Akses `http://localhost:5000` di browser Anda.
 
-Jika belum ada, unduh dari Darknet atau repo resmi YOLO.
-
----
-
-# 🧰 Cara Menjalankan Project
-
-## 🪟 Windows
-
-1. Aktifkan venv
-
-```
-venv\Scripts\activate
-```
-
-2. Jalankan sistem counting
-
-```
-python python-counter/people_counter.py
-```
-
-3. Jalankan dashboard
-
-```
-python python-counter/dashboard.py
-```
-
-Akses di browser:
-
-```
-http://localhost:5000
-```
+3.  **Interaksi**:
+    *   Pilih kamera dari dropdown.
+    *   Lihat grafik bergerak saat orang terdeteksi.
+    *   Gunakan menu navigasi untuk melihat laporan bulanan.
 
 ---
 
-## 🐧 Linux
-
-
-1. Aktifkan venv
-
-```
-source venv/bin/activate
-```
-
-2. Jalankan counting
-
-```
-python3 python-counter/people_counter.py
-```
-
-3. Jalankan dashboard
-
-```
-python3 python-counter/dashboard.py
-```
-
-Akses:
-
-```
-http://localhost:5000
-```
+## 🛠️ Tech Stack
+*   **Backend**: Flask (Python)
+*   **Vision**: OpenCV, NumPy
+*   **Database**: SQLite3
+*   **Frontend**: HTML5, TailwindCSS, Chart.js
+*   **Icons**: FontAwesome
 
 ---
 
-# 🔁 Ringkasan Perintah Penting
-
-| Sistem Operasi | Aktifkan venv            | Jalankan Counter                         | Jalankan Dashboard                  |
-| -------------- | ------------------------ | ---------------------------------------- | ----------------------------------- |
-| Windows        | venv\Scripts\activate    | python python-counter/people_counter.py  | python python-counter/dashboard.py  |
-| Linux          | source venv/bin/activate | python3 python-counter/people_counter.py | python3 python-counter/dashboard.py |
-
----
-
-# 🎥 Menjalankan Sistem Deteksi & Counting
-
-```
-python people_counter.py
-```
-
-Fungsi:
-
-* Kamera aktif
-* YOLO mendeteksi manusia
-* Tracker memberi ID unik
-* Line crossing hitung masuk/keluar
-* Data tersimpan otomatis ke SQLite
-
----
-
-# 📊 Menjalankan Dashboard
-
-```
-python dashboard.py
-```
-
-Akses:
-
-```
-http://localhost:5000
-```
-
-Dashboard menampilkan:
-
-* Grafik harian
-* Total bulanan
-* Log masuk/keluar
-
----
-
-# ⚙️ Konfigurasi Penting
-
-```
-VIDEO_SOURCE = 0
-LINE_POSITION = 0.5
-DB_PATH = "people_counter.db"
-ESP32_ENDPOINT = None
-```
-
-Untuk mengirim event ke ESP32:
-
-```
-ESP32_ENDPOINT = "http://192.168.4.1/event"
-```
-
----
-
-# 📡 Integrasi ESP32
-
-ESP32 dapat digunakan untuk:
-
-* Menampilkan jumlah pengunjung
-* Menerima event dari Python
-* Mengirim feedback tambahan
-
-Format JSON:
-
-```
-{ "event": "in" }
-```
-
----
-
-# 🔄 Diagram Alur
-
-```
-Kamera
- ↓
-YOLOv3-Tiny (deteksi manusia)
- ↓
-Centroid Tracker
- ↓
-Line Crossing (IN/OUT)
- ↓
-Simpan SQLite
- ↓
-Dashboard Flask
-```
-
----
-
-# 🛢 Struktur Database
-
-## Tabel `events`
-
-| Field     | Tipe    | Keterangan   |
-| --------- | ------- | ------------ |
-| id        | INTEGER | Primary key  |
-| ts        | TEXT    | Timestamp    |
-| direction | TEXT    | "in" / "out" |
-
----
-
-# 🧪 Troubleshooting
-
-### Kamera tidak terbaca
-
-Ubah:
-
-```
-VIDEO_SOURCE = 1
-```
-
-### YOLO file not found
-
-Pastikan folder `models/` lengkap.
-
-### Flask tidak muncul
-
-```
-lsof -i:5000
-```
-
----
-
-# 📜 Lisensi
-
-MIT License.
-
----
-
-# 🤝 Kontribusi
-
-Pull request sangat dipersilakan.
-
----
-
-# 👨‍💻 Dibuat Oleh
-
-Tim pengembang sistem penghitung pengunjung berbasis Python, YOLO, OpenCV, ESP32, Flask, dan SQLite.
-
-
+**© 2025 Smart People Counter Project**. Built efficiently.
