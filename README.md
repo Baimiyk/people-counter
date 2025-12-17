@@ -37,11 +37,11 @@ Diagram ini menunjukkan bagaimana komponen Front-End (Browser), Back-End (Flask)
 
 ```mermaid
 graph TD
-    User[User / Browser] <-->|HTTP Requests (AJAX)| Server[Flask Server]
-    Server <-->|SQL Queries| DB[(SQLite Database)]
-    Server <-->|Reads Frame| Threads[Video Processing Thread (Background)]
-    Threads <-->|Captures| Cam[Camera Source / CCTV]
-    Threads <-->|Inference| Model[YOLOv4-tiny Model]
+    User["User / Browser"] <-->|"HTTP Requests (AJAX)"| Server["Flask Server"]
+    Server <-->|"SQL Queries"| DB[("SQLite Database")]
+    Server <-->|"Reads Frame"| Threads["Video Processing Thread (Background)"]
+    Threads <-->|"Captures"| Cam["Camera Source / CCTV"]
+    Threads <-->|"Inference"| Model["YOLOv4-tiny Model"]
     
     subgraph "Backend Core"
     Server
@@ -55,17 +55,17 @@ Langkah-langkah yang terjadi dalam setiap frame video untuk menghitung pengunjun
 
 ```mermaid
 flowchart TD
-    A[Start Frame] --> B{Camera Active?}
-    B -- No --> Z[Stop / Reconnect]
-    B -- Yes --> C[Capture Frame]
-    C --> D[Object Detection (YOLO)]
-    D --> E[Centroid Tracking]
-    E --> F{Crossed Line?}
-    F -- Yes --> G[Update Counter & DB]
-    F -- No --> H[Draw UI Overlay]
+    A["Start Frame"] --> B{"Camera Active?"}
+    B -- No --> Z["Stop / Reconnect"]
+    B -- Yes --> C["Capture Frame"]
+    C --> D["Object Detection (YOLO)"]
+    D --> E["Centroid Tracking"]
+    E --> F{"Crossed Line?"}
+    F -- Yes --> G["Update Counter & DB"]
+    F -- No --> H["Draw UI Overlay"]
     G --> H
-    H --> I[Encode JPEG]
-    I --> J[Stream to Browser]
+    H --> I["Encode JPEG"]
+    I --> J["Stream to Browser"]
     J --> B
 ```
 
@@ -169,6 +169,30 @@ Pastikan file weights ada di folder `models/`:
     *   Pilih kamera dari dropdown.
     *   Lihat grafik bergerak saat orang terdeteksi.
     *   Gunakan menu navigasi untuk melihat laporan bulanan.
+
+### 📱 Akses via HP (Remote Monitoring)
+Anda bisa memantau dashboard dari HP atau laptop lain dalam satu jaringan Wi-Fi:
+
+1.  **Pastikan satu jaringan**: Laptop server dan HP harus terhubung ke Wi-Fi yang sama.
+2.  **Cek IP Laptop**:
+    *   **Windows**: Buka CMD, ketik `ipconfig`. Cari IPv4 (misal: `192.168.1.5`).
+    *   **Linux/Mac**: Buka Terminal, ketik `hostname -I` atau `ifconfig`.
+3.  **Buka Browser HP**:
+    Ketik alamat IP laptop diikuti port 5000.
+    Contoh: `http://192.168.1.5:5000`
+
+### 🌐 Akses via Internet (Ngrok)
+Jika ingin mengakses dari luar jaringan Wi-Fi (misal data seluler):
+
+1.  **Install Ngrok**: Download dari [ngrok.com](https://ngrok.com).
+2.  **Jalankan Ngrok**:
+    Buka terminal baru, jalankan:
+    ```bash
+    ngrok http 5000
+    ```
+3.  **Salin URL**: Ngrok akan memberi URL publik (misal: `https://abcd.ngrok-free.app`). Buka URL tersebut di HP Anda.
+
+    > **Catatan**: Saat pertama kali membuka link, Anda mungkin melihat halaman peringatan biru dari Ngrok. Klik tombol **"Visit Site"** untuk melanjutkan.
 
 ---
 
