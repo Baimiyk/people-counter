@@ -3,535 +3,359 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart People Counter AI</title>
+    <title>PerpusQu Dashboard</title>
     
-    <!-- CDN Libraries -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     
-    <style>
-        body { font-family: 'Inter', sans-serif; }
-        [x-cloak] { display: none !important; }
-        
-        /* Fallback jika Tailwind tidak load */
-        .offline-alert {
-            background: #ef4444; color: white; padding: 10px; text-align: center;
-            font-family: sans-serif; font-weight: bold; display: none;
-        }
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-        /* Animasi Live Indicator */
-        @keyframes pulse-red {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+    <style>
+        body { font-family: 'Poppins', sans-serif; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+
+        /* CCTV Effects */
+        .cctv-filter { filter: grayscale(100%) contrast(120%); }
+        .scanline {
+            width: 100%; height: 100%;
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1));
+            background-size: 100% 4px;
+            position: absolute; top: 0; left: 0; pointer-events: none; z-index: 10;
         }
-        .live-dot { animation: pulse-red 1.5s infinite; }
-        
-        /* Custom Scrollbar untuk Sidebar */
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        /* Animation */
+        .animate-fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
+<body class="bg-gray-100 h-screen flex overflow-hidden selection:bg-blue-100">
 
-<body class="bg-gray-100 text-slate-800 font-sans antialiased" 
-      x-data="appLogic()" 
-      x-init="initApp()">
+    <aside class="w-20 bg-white h-full flex flex-col items-center py-8 shadow-sm z-20 flex-shrink-0">
+        <div class="mb-10"></div> <nav class="flex flex-col gap-8 w-full">
+            <button onclick="switchTab('camera')" id="btn-camera" class="nav-btn w-full h-12 flex items-center justify-center text-blue-500 border-r-4 border-blue-500 transition-all hover:bg-gray-50">
+                <i class="fa-solid fa-camera text-xl"></i>
+            </button>
+            
+            <button onclick="switchTab('daily')" id="btn-daily" class="nav-btn w-full h-12 flex items-center justify-center text-gray-400 hover:text-blue-500 transition-all">
+                <i class="fa-solid fa-chart-line text-xl"></i>
+            </button>
+            
+            <button onclick="switchTab('monthly')" id="btn-monthly" class="nav-btn w-full h-12 flex items-center justify-center text-gray-400 hover:text-blue-500 transition-all">
+                <i class="fa-solid fa-file-invoice text-xl"></i>
+            </button>
+        </nav>
+    </aside>
 
-    <!-- 1. ALERT OFFLINE -->
-    <div id="offline-msg" class="offline-alert">
-        ⚠️ PERINGATAN: Tidak ada koneksi internet. Tampilan mungkin rusak.
-    </div>
-    <script>
-        window.onload = function() {
-            if (typeof tailwind === 'undefined' || typeof Chart === 'undefined') {
-                document.getElementById('offline-msg').style.display = 'block';
-            }
-        }
-    </script>
-
-    <!-- 2. NOTIFIKASI ERROR (Toast) -->
-    <div x-show="isError" x-cloak
-         x-transition:enter="transition ease-out duration-300"
-         x-transition:enter-start="opacity-0 translate-y-2"
-         x-transition:enter-end="opacity-100 translate-y-0"
-         x-transition:leave="transition ease-in duration-200"
-         x-transition:leave-start="opacity-100 translate-y-0"
-         x-transition:leave-end="opacity-0 translate-y-2"
-         @click="isError = false"
-         class="fixed bottom-6 right-6 z-50 bg-red-500 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 max-w-sm cursor-pointer hover:bg-red-600 transition">
+    <main class="flex-1 p-4 md:p-8 flex items-center justify-center overflow-hidden">
         
-        <div class="bg-white/20 p-2 rounded-full shrink-0">
-            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-        </div>
-        <div>
-            <h4 class="font-bold text-sm">Error Sistem</h4>
-            <p class="text-xs text-red-100 mt-0.5" x-text="errorMsg">Gagal memuat data.</p>
-        </div>
-    </div>
-
-    <!-- 3. MOBILE OVERLAY (Backdrop) -->
-    <div x-show="isSidebarOpen" 
-         x-transition.opacity
-         @click="isSidebarOpen = false"
-         class="fixed inset-0 bg-black/50 z-30 md:hidden backdrop-blur-sm">
-    </div>
-
-    <div class="flex h-screen overflow-hidden">
-        
-        <!-- SIDEBAR -->
-        <!-- Logic: Default hidden di mobile (-translate-x-full), muncul jika isSidebarOpen true. Di desktop selalu visible (md:translate-x-0). -->
-        <aside :class="isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'"
-               class="fixed md:static inset-y-0 left-0 w-64 bg-slate-900 text-white flex flex-col shadow-2xl z-40 transition-transform duration-300 ease-in-out">
+        <div class="bg-white w-full h-full max-w-7xl rounded-[2.5rem] shadow-xl overflow-hidden relative flex flex-col p-6 md:p-10">
             
-            <div class="h-20 flex items-center justify-center border-b border-slate-800 bg-slate-950 shrink-0">
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 bg-gradient-to-br from-green-400 to-blue-500 rounded-lg flex items-center justify-center font-bold text-white shadow-lg">AI</div>
-                    <h1 class="text-xl font-bold tracking-wider text-gray-100">COUNTER</h1>
-                </div>
-            </div>
-
-            <nav class="flex-1 px-4 py-6 space-y-2 overflow-y-auto no-scrollbar">
-                <!-- Menu Items -->
-                <template x-for="item in menuItems" :key="item.id">
-                    <button @click="switchPage(item.id)" 
-                            :class="currentPage === item.id ? 'bg-slate-800 text-green-400 border-r-4 border-green-400' : 'text-gray-400 hover:bg-slate-800 hover:text-gray-200'"
-                            class="w-full flex items-center px-4 py-3 transition-all duration-200 text-sm font-medium rounded-r-sm rounded-l-lg group">
-                        <div x-html="item.icon" class="mr-3 w-5 h-5 group-hover:scale-110 transition-transform"></div>
-                        <span x-text="item.label"></span>
-                    </button>
-                </template>
-            </nav>
-            
-            <div class="p-4 border-t border-slate-800 text-xs text-slate-500 text-center">
-                v1.2.0 &copy; 2025 AI Lab
-            </div>
-        </aside>
-
-        <!-- MAIN CONTENT -->
-        <main class="flex-1 flex flex-col h-screen overflow-y-auto relative bg-gray-50 w-full">
-            
-            <!-- Header -->
-            <header class="h-20 bg-white shadow-sm border-b border-gray-200 flex items-center justify-between px-4 lg:px-8 sticky top-0 z-20">
-                <div class="flex items-center gap-4">
-                    <!-- Tombol Hamburger (Mobile Only) -->
-                    <button @click="isSidebarOpen = !isSidebarOpen" class="md:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
-                    </button>
-
-                    <div>
-                        <h2 class="text-xl lg:text-2xl font-bold text-slate-800" x-text="getPageTitle()"></h2>
-                        <p class="text-xs text-gray-500 hidden sm:block" x-text="currentDate"></p>
-                    </div>
+            <header class="flex justify-between items-center mb-6 h-10 flex-shrink-0">
+                <div class="text-[#1e1b4b] text-2xl font-bold flex items-center gap-2">
+                    <i class="fa-solid fa-book-open"></i> PerpusQu
                 </div>
                 
-                <!-- Date Filter (Only on Dashboard) -->
-                <div x-show="currentPage === 'dashboard'" class="flex gap-2 bg-gray-50 p-1.5 rounded-lg border border-gray-200">
-                    <select x-model="selectedMonth" @change="fetchData()" class="bg-transparent text-sm font-semibold text-gray-600 px-2 py-1 outline-none cursor-pointer">
-                        <template x-for="(m, i) in months">
-                            <option :value="i+1" x-text="m" :selected="i+1 == selectedMonth"></option>
-                        </template>
-                    </select>
-                    <div class="w-px bg-gray-300 my-1"></div>
-                    <select x-model="selectedYear" @change="fetchData()" class="bg-transparent text-sm font-semibold text-gray-600 px-2 py-1 outline-none cursor-pointer">
-                        <option value="2024">2024</option>
-                        <option value="2025">2025</option>
-                    </select>
-                </div>
+                <button id="header-date-dropdown" class="hidden text-gray-500 font-medium flex items-center gap-2 hover:text-gray-700 transition-opacity duration-200">
+                    November 2025 <i class="fa-solid fa-caret-down"></i>
+                </button>
             </header>
 
-            <div class="p-4 lg:p-8 space-y-8 pb-24">
+            <div class="flex-1 relative overflow-hidden h-full">
 
-                <!-- 1. HALAMAN DASHBOARD -->
-                <div x-show="currentPage === 'dashboard'" x-transition.opacity.duration.300ms class="space-y-6">
+                <div id="view-camera" class="view-section w-full h-full grid grid-cols-1 lg:grid-cols-4 gap-6 animate-fade-in pb-2">
                     
-                    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                        <!-- Video Feed -->
-                        <div class="xl:col-span-2 bg-black rounded-2xl shadow-lg overflow-hidden relative group aspect-video flex items-center justify-center bg-slate-900">
-                            <!-- Menggunakan url_for Flask -->
-                            <img src="{{ url_for('video_feed') }}" alt="Live Stream" class="w-full h-full object-contain">
+                    <div class="lg:col-span-3 bg-black rounded-lg relative overflow-hidden shadow-inner group min-h-0">
+                        <img src="https://images.unsplash.com/photo-1574864459639-50c111051515?q=80&w=2070&auto=format&fit=crop" 
+                             alt="CCTV Feed" class="w-full h-full object-cover cctv-filter opacity-90">
+                        <div class="scanline"></div>
+                        
+                        <div class="absolute top-4 left-4 right-4 flex justify-between text-white font-mono text-lg tracking-widest drop-shadow-md z-10">
+                            <div class="flex flex-col">
+                                <span><i class="fa-solid fa-video"></i></span>
+                                <span class="text-2xl font-bold mt-auto absolute bottom-4 left-4 border border-white px-2 bg-black/50">CCTV AUTO</span>
+                            </div>
+                            <div class="text-right">
+                                <span>[U] [12h03m]</span><br>
+                                <span>08 : 09 : 19</span><br>
+                                <span class="text-red-600 font-bold blink">● REC</span>
+                            </div>
+                        </div>
+
+                        <div class="absolute top-1/3 left-1/4 w-16 h-16 border-2 border-red-600 bg-red-500/20 box-shadow-red z-10"></div>
+                        <div class="absolute top-1/4 left-1/2 w-14 h-14 border-2 border-red-600 bg-red-500/20 box-shadow-red z-10"></div>
+                        <div class="absolute bottom-1/3 right-1/4 w-16 h-16 border-2 border-red-600 bg-red-500/20 box-shadow-red z-10"></div>
+                    </div>
+
+                    <div class="flex flex-col gap-4 h-full min-h-0">
+                        
+                        <div class="bg-white border border-gray-100 rounded-2xl shadow-sm p-4 flex flex-col flex-1 min-h-0">
+                            <div class="flex justify-between items-start mb-2 flex-shrink-0">
+                                <h3 class="text-xs font-bold text-gray-800">Pie Chart Example</h3>
+                                <a href="#" class="text-[10px] text-blue-500 hover:underline">View Details <i class="fas fa-external-link-alt"></i></a>
+                            </div>
                             
-                            <div class="absolute top-4 left-4 bg-black/70 backdrop-blur-md text-white px-3 py-1.5 rounded-md text-xs font-mono flex items-center gap-2 shadow-sm pointer-events-none">
-                                <div class="w-2 h-2 bg-red-500 rounded-full live-dot"></div>
-                                LIVE REC
+                            <div class="flex-1 min-h-0 relative flex items-center justify-center">
+                                <canvas id="pieChart"></canvas>
+                            </div>
+                            
+                            <div class="mt-3 pt-2 flex justify-center items-center gap-6 border-t border-dashed border-gray-100 flex-shrink-0">
+                                <div class="flex items-center gap-2">
+                                    <span class="w-3 h-3 rounded-full bg-[#14b8a6]"></span>
+                                    <span class="text-xs text-gray-600 font-medium">Come</span>
+                                    <span class="text-sm text-gray-900 font-bold">75</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="w-3 h-3 rounded-full bg-[#facc15]"></span>
+                                    <span class="text-xs text-gray-600 font-medium">Leave</span>
+                                    <span class="text-sm text-gray-900 font-bold">25</span>
+                                </div>
                             </div>
                         </div>
 
-                        <!-- Stats Cards -->
-                        <div class="flex flex-col gap-4 justify-center">
-                            <!-- Card Masuk -->
-                            <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden">
-                                <p class="text-sm text-gray-500 font-semibold uppercase tracking-wide">Total Masuk</p>
-                                <div class="flex items-baseline gap-2 mt-2">
-                                    <h3 class="text-4xl font-bold text-slate-800" x-text="stats.total_in">0</h3>
-                                    <span class="text-xs text-green-600 font-medium bg-green-100 px-2 py-0.5 rounded-full">Org</span>
+                        <div class="bg-white border border-gray-100 rounded-2xl shadow-sm p-5 flex flex-col justify-center flex-1 min-h-0">
+                            <div class="flex flex-col gap-4 w-full">
+                                <div>
+                                    <p class="text-xs font-bold text-gray-800 mb-2">Time</p>
+                                    <div class="flex items-center gap-2 text-gray-800 text-lg font-mono font-medium">
+                                        <i class="fa-regular fa-clock text-gray-400"></i> 16:04:24
+                                    </div>
+                                </div>
+                                
+                                <div class="border-t border-gray-100 pt-4 w-full">
+                                    <div class="grid grid-cols-2 gap-y-2 text-xs">
+                                        <div class="text-gray-400">Date</div> 
+                                        <div class="text-right text-gray-700 font-medium">27/11/2025</div>
+                                        
+                                        <div class="text-gray-400">Synced Time</div> 
+                                        <div class="text-right text-gray-700 font-medium">16:04:24</div>
+                                    </div>
                                 </div>
                             </div>
-                            <!-- Card Keluar -->
-                            <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden">
-                                <p class="text-sm text-gray-500 font-semibold uppercase tracking-wide">Total Keluar</p>
-                                <div class="flex items-baseline gap-2 mt-2">
-                                    <h3 class="text-4xl font-bold text-slate-800" x-text="stats.total_out">0</h3>
-                                    <span class="text-xs text-red-600 font-medium bg-red-100 px-2 py-0.5 rounded-full">Org</span>
-                                </div>
-                            </div>
-                            <!-- Card Okupansi -->
-                            <div class="bg-slate-800 p-5 rounded-2xl shadow-lg relative overflow-hidden text-white">
-                                <p class="text-xs text-slate-400 font-semibold uppercase tracking-wide">Sedang di Ruangan</p>
-                                <div class="flex items-center justify-between mt-3">
-                                    <h3 class="text-5xl font-bold text-blue-400" x-text="Math.max(0, stats.total_in - stats.total_out)">0</h3>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Main Daily Chart -->
-                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                        <div class="flex justify-between items-center mb-6">
-                            <h3 class="text-lg font-bold text-slate-800">Trafik Harian Bulan Ini</h3>
-                        </div>
-                        <div class="h-64 lg:h-72 w-full relative">
-                            <canvas id="trafficChart"></canvas>
                         </div>
                     </div>
                 </div>
 
-                <!-- 2. HALAMAN HISTORY -->
-                <div x-show="currentPage === 'history'" x-cloak x-transition.opacity class="space-y-8">
+                <div id="view-daily" class="view-section hidden w-full h-full flex flex-col gap-6 animate-fade-in pb-2">
                     
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <!-- Chart Container Template -->
-                        <template x-for="(chart, key) in analyticCharts" :key="key">
-                            <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-                                <div class="flex items-center justify-between mb-4">
-                                    <h3 class="font-bold text-slate-700" x-text="chart.title"></h3>
-                                    <span x-show="chart.badge" class="text-xs px-2 py-1 rounded-md font-semibold" 
-                                          :class="chart.badgeClass" x-text="chart.badge"></span>
-                                </div>
-                                <div class="h-56 relative">
-                                    <canvas :id="chart.id"></canvas>
-                                </div>
-                            </div>
-                        </template>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 flex-shrink-0">
+                        <div class="bg-white rounded-2xl shadow-[0_3px_15px_-5px_rgba(0,0,0,0.1)] p-6 flex flex-col items-center justify-center text-center border border-gray-50 h-32 lg:h-40">
+                            <h3 class="text-gray-500 font-medium text-lg mb-2">Visitor Come</h3>
+                            <span class="text-5xl lg:text-6xl font-bold text-blue-500">20</span>
+                        </div>
+                        <div class="bg-white rounded-2xl shadow-[0_3px_15px_-5px_rgba(0,0,0,0.1)] p-6 flex flex-col items-center justify-center text-center border border-gray-50 h-32 lg:h-40">
+                            <h3 class="text-gray-500 font-medium text-lg mb-2">Visitor Leave</h3>
+                            <span class="text-5xl lg:text-6xl font-bold text-orange-400">5</span>
+                        </div>
+                        <div class="bg-white rounded-2xl shadow-[0_3px_15px_-5px_rgba(0,0,0,0.1)] p-6 flex flex-col items-center justify-center text-center border border-gray-50 h-32 lg:h-40">
+                            <h3 class="text-gray-500 font-medium text-lg mb-2">Current Visitor</h3>
+                            <span class="text-5xl lg:text-6xl font-bold text-[#22c55e]">15</span>
+                        </div>
                     </div>
 
-                    <!-- Log Table -->
-                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                        <div class="px-6 py-4 border-b border-gray-100 flex flex-wrap gap-2 justify-between items-center bg-gray-50/50">
-                            <h3 class="font-bold text-slate-700">Log Aktivitas Terakhir</h3>
-                            <button @click="fetchLogs()" class="px-3 py-1.5 bg-white border border-gray-200 rounded-md text-sm text-gray-600 hover:bg-gray-50 shadow-sm transition active:scale-95">
-                                Refresh Data
-                            </button>
-                        </div>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left text-sm whitespace-nowrap">
-                                <thead class="bg-gray-50 text-gray-500 font-semibold uppercase text-xs">
-                                    <tr>
-                                        <th class="px-6 py-3">ID</th>
-                                        <th class="px-6 py-3">Waktu</th>
-                                        <th class="px-6 py-3">Arah</th>
-                                        <th class="px-6 py-3 text-right">Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-gray-100">
-                                    <template x-for="log in logs" :key="log.id">
-                                        <tr class="hover:bg-gray-50 transition">
-                                            <td class="px-6 py-4 text-gray-500" x-text="'#' + log.id"></td>
-                                            <td class="px-6 py-4 font-medium text-slate-700" x-text="log.ts"></td>
-                                            <td class="px-6 py-4">
-                                                <span class="px-3 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1"
-                                                      :class="log.direction === 'in' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'">
-                                                    <span x-text="log.direction === 'in' ? '⬇️' : '⬆️'"></span>
-                                                    <span x-text="log.direction === 'in' ? 'MASUK' : 'KELUAR'"></span>
-                                                </span>
-                                            </td>
-                                            <td class="px-6 py-4 text-right text-gray-400">Terekam</td>
-                                        </tr>
-                                    </template>
-                                    <tr x-show="logs.length === 0">
-                                        <td colspan="4" class="px-6 py-8 text-center text-gray-400">Belum ada data terekam.</td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                    <div class="bg-white rounded-2xl shadow-[0_3px_15px_-5px_rgba(0,0,0,0.1)] p-6 flex-1 border border-gray-50 flex flex-col min-h-0">
+                        <h3 class="text-gray-500 text-lg font-medium mb-4 flex-shrink-0">Day Chart Vizualitation</h3>
+                        <div class="relative w-full flex-1 min-h-0">
+                            <canvas id="dailyChart"></canvas>
                         </div>
                     </div>
                 </div>
 
-                <!-- 3. HALAMAN SETTINGS -->
-                <div x-show="currentPage === 'settings'" x-cloak x-transition.opacity>
-                    <div class="max-w-2xl bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
-                        <div class="flex items-center gap-4 mb-6">
-                            <div class="p-3 bg-gray-100 rounded-full">
-                                <svg class="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                            </div>
-                            <div>
-                                <h3 class="text-xl font-bold text-slate-800">Konfigurasi Sistem</h3>
-                                <p class="text-gray-500 text-sm">Pengaturan parameter deteksi dan server.</p>
-                            </div>
+                <div id="view-monthly" class="view-section hidden w-full h-full flex flex-col gap-6 animate-fade-in pb-2">
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 flex-shrink-0">
+                        <div class="bg-white rounded-2xl shadow-[0_3px_15px_-5px_rgba(0,0,0,0.1)] p-6 flex flex-col items-center justify-center text-center border border-gray-50 h-32 lg:h-40">
+                            <h3 class="text-gray-500 font-medium text-lg mb-2">Visitor Come/Month</h3>
+                            <span class="text-5xl lg:text-6xl font-bold text-blue-500">20</span>
                         </div>
-                        <div class="space-y-4 border-t border-gray-100 pt-6">
-                            <p class="text-gray-600">Pengaturan ini bersifat statis untuk saat ini. Anda dapat menambahkan form konfigurasi Flask di sini.</p>
-                            <button class="px-4 py-2 bg-slate-800 text-white rounded-lg text-sm hover:bg-slate-700 transition">Download System Log</button>
+                        <div class="bg-white rounded-2xl shadow-[0_3px_15px_-5px_rgba(0,0,0,0.1)] p-6 flex flex-col items-center justify-center text-center border border-gray-50 h-32 lg:h-40">
+                            <h3 class="text-gray-500 font-medium text-lg mb-2">Total Visitor/Month</h3>
+                            <span class="text-5xl lg:text-6xl font-bold text-orange-400">5</span>
+                        </div>
+                        <div class="bg-white rounded-2xl shadow-[0_3px_15px_-5px_rgba(0,0,0,0.1)] p-6 flex flex-col items-center justify-center text-center border border-gray-50 h-32 lg:h-40">
+                            <h3 class="text-gray-500 font-medium text-lg mb-2">Peak Visitor/Month</h3>
+                            <span class="text-5xl lg:text-6xl font-bold text-[#22c55e]">25</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl shadow-[0_3px_15px_-5px_rgba(0,0,0,0.1)] p-6 flex-1 border border-gray-50 flex flex-col min-h-0">
+                        <h3 class="text-gray-500 text-lg font-medium mb-4 flex-shrink-0">Visitors per Day</h3>
+                        <div class="relative w-full flex-1 min-h-0">
+                            <canvas id="monthlyChart"></canvas>
                         </div>
                     </div>
                 </div>
 
             </div>
-        </main>
-    </div>
+        </div>
+    </main>
 
-    <!-- MAIN JAVASCRIPT LOGIC -->
     <script>
-        function appLogic() {
-            return {
-                // --- STATE UI ---
-                currentPage: 'dashboard',
-                isSidebarOpen: false, // Untuk Mobile
-                isError: false,
-                errorMsg: '',
-                currentDate: new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
-                
-                // --- FILTER DATA ---
-                selectedYear: new Date().getFullYear(),
-                selectedMonth: new Date().getMonth() + 1,
-                months: ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'],
+        // --- Navigation Logic ---
+        function switchTab(tabName) {
+            const views = {
+                camera: document.getElementById('view-camera'),
+                daily: document.getElementById('view-daily'),
+                monthly: document.getElementById('view-monthly')
+            };
+            const buttons = {
+                camera: document.getElementById('btn-camera'),
+                daily: document.getElementById('btn-daily'),
+                monthly: document.getElementById('btn-monthly')
+            };
+            const dateDropdown = document.getElementById('header-date-dropdown');
 
-                // --- DATA STORE ---
-                stats: { total_in: 0, total_out: 0 },
-                logs: [],
-                
-                // --- CHART INSTANCES ---
-                mainChart: null,
-                historyCharts: {},
+            // Reset
+            Object.values(views).forEach(el => el.classList.add('hidden'));
+            Object.values(buttons).forEach(btn => {
+                btn.classList.remove('text-blue-500', 'border-r-4', 'border-blue-500');
+                btn.classList.add('text-gray-400');
+            });
 
-                // --- CONFIG MENU ---
-                menuItems: [
-                    { id: 'dashboard', label: 'Dashboard', icon: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>' },
-                    { id: 'history', label: 'Riwayat & Analitik', icon: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>' },
-                    { id: 'settings', label: 'Pengaturan', icon: '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>' }
-                ],
-                
-                analyticCharts: [
-                    { id: 'chartHourly', title: 'Tren Hari Ini', badge: 'Realtime', badgeClass: 'bg-blue-100 text-blue-600' },
-                    { id: 'chartWeekly', title: 'Tren 7 Hari', badge: 'Weekly', badgeClass: 'bg-purple-100 text-purple-600' },
-                    { id: 'chartMonthly', title: 'Statistik Bulan Ini', badge: null, badgeClass: '' },
-                    { id: 'chartYearly', title: 'Rekap Tahun Ini', badge: null, badgeClass: '' }
-                ],
+            // Activate
+            if (views[tabName]) views[tabName].classList.remove('hidden');
+            if (buttons[tabName]) {
+                buttons[tabName].classList.add('text-blue-500', 'border-r-4', 'border-blue-500');
+                buttons[tabName].classList.remove('text-gray-400');
+            }
 
-                getPageTitle() {
-                    const titles = {
-                        'dashboard': 'Dashboard Utama',
-                        'history': 'Analitik & Riwayat',
-                        'settings': 'Pengaturan Sistem'
-                    };
-                    return titles[this.currentPage] || 'Dashboard';
-                },
-
-                triggerError(message) {
-                    this.errorMsg = message || 'Gagal terhubung ke server.';
-                    this.isError = true;
-                    setTimeout(() => { this.isError = false; }, 5000);
-                },
-
-                // --- NAVIGATION LOGIC ---
-                switchPage(page) {
-                    this.currentPage = page;
-                    // Auto close sidebar on mobile
-                    if (window.innerWidth < 768) {
-                        this.isSidebarOpen = false;
-                    }
-
-                    if(page === 'history') {
-                        this.fetchLogs();
-                        // Tunggu DOM update sebelum render chart
-                        this.$nextTick(() => {
-                            this.loadHistoryCharts();
-                        });
-                    }
-                    if(page === 'dashboard') {
-                        this.fetchData();
-                    }
-                },
-
-                initApp() {
-                    console.log("System Initialized");
-                    // Resize listener untuk reset sidebar state
-                    window.addEventListener('resize', () => {
-                        if(window.innerWidth >= 768) this.isSidebarOpen = false;
-                    });
-
-                    try {
-                        this.initMainChart();
-                        this.startPolling();
-                    } catch (e) {
-                        console.error("Init Error:", e);
-                        this.triggerError("Gagal Inisialisasi Dashboard.");
-                    }
-                },
-
-                // --- SMART POLLING (Recursive Timeout) ---
-                async startPolling() {
-                    const loop = async () => {
-                        // Hanya fetch jika di dashboard dan tab browser aktif
-                        if (this.currentPage === 'dashboard' && document.visibilityState === 'visible') {
-                            await this.fetchData();
-                        }
-                        // Tunggu 2 detik, lalu ulang
-                        setTimeout(loop, 2000);
-                    };
-                    loop();
-                },
-
-                // --- DATA FETCHING ---
-                async fetchData() {
-                    try {
-                        const params = `?year=${this.selectedYear}&month=${this.selectedMonth}`;
-                        // Fetch Summary
-                        const resMeta = await fetch(`/api/monthly${params}`);
-                        if(!resMeta.ok) throw new Error("API Error");
-                        this.stats = await resMeta.json();
-
-                        // Fetch Daily Chart Data
-                        const resDaily = await fetch(`/api/daily${params}`);
-                        if(resDaily.ok) {
-                            const dataDaily = await resDaily.json();
-                            this.updateMainChart(dataDaily);
-                        }
-                    } catch (e) { 
-                        // Silent error saat polling agar tidak spam alert
-                        console.warn("Polling skipped/failed:", e);
-                    }
-                },
-
-                // --- CHART LOGIC (MAIN) ---
-                initMainChart() {
-                    if(typeof Chart === 'undefined') return;
-                    const el = document.getElementById('trafficChart');
-                    if(!el) return;
-
-                    const ctx = el.getContext('2d');
-                    this.mainChart = new Chart(ctx, {
-                        type: 'bar',
-                        data: {
-                            labels: [],
-                            datasets: [
-                                { label: 'Masuk', data: [], backgroundColor: '#4ade80', borderRadius: 4, barPercentage: 0.6 },
-                                { label: 'Keluar', data: [], backgroundColor: '#f87171', borderRadius: 4, barPercentage: 0.6 }
-                            ]
-                        },
-                        options: {
-                            responsive: true, maintainAspectRatio: false,
-                            plugins: { legend: { position: 'bottom', labels: { usePointStyle: true } } },
-                            scales: { 
-                                y: { beginAtZero: true, grid: { borderDash: [2, 2] } }, 
-                                x: { grid: { display: false } } 
-                            }
-                        }
-                    });
-                },
-
-                updateMainChart(data) {
-                    if (!this.mainChart) return;
-                    // Asumsi data.days format "YYYY-MM-DD" -> ambil tanggal saja
-                    this.mainChart.data.labels = data.days.map(d => d.split('-')[2]);
-                    this.mainChart.data.datasets[0].data = data.in;
-                    this.mainChart.data.datasets[1].data = data.out;
-                    this.mainChart.update('none'); // mode 'none' = update tanpa animasi berat
-                },
-
-                // --- HISTORY LOGIC ---
-                async fetchLogs() {
-                    try {
-                        const res = await fetch('/api/logs');
-                        if(!res.ok) throw new Error("Gagal ambil data log");
-                        this.logs = await res.json();
-                    } catch (e) { 
-                        this.triggerError("Gagal mengambil Log Aktivitas.");
-                    }
-                },
-
-                async loadHistoryCharts() {
-                    if(typeof Chart === 'undefined') return;
-
-                    try {
-                        const [resHour, resWeek, resMonth, resYear] = await Promise.all([
-                            fetch('/api/hourly'),
-                            fetch('/api/weekly'),
-                            fetch(`/api/daily?year=${new Date().getFullYear()}&month=${new Date().getMonth() + 1}`),
-                            fetch('/api/yearly')
-                        ]);
-
-                        if(!resHour.ok) throw new Error("API Hour Failed");
-
-                        const dataHour = await resHour.json();
-                        const dataWeek = await resWeek.json();
-                        const dataMonth = await resMonth.json();
-                        const dataYear = await resYear.json();
-
-                        this.renderChart('chartHourly', 'line', dataHour.labels, dataHour.in, dataHour.out);
-                        this.renderChart('chartWeekly', 'line', dataWeek.labels, dataWeek.in, dataWeek.out);
-                        
-                        // Parse label tanggal untuk bulanan
-                        const monthLabels = dataMonth.days ? dataMonth.days.map(d => d.split('-')[2]) : [];
-                        this.renderChart('chartMonthly', 'bar', monthLabels, dataMonth.in, dataMonth.out);
-                        
-                        this.renderChart('chartYearly', 'bar', dataYear.labels, dataYear.in, dataYear.out);
-                    } catch (e) {
-                        console.error(e);
-                        this.triggerError("Gagal memuat grafik analitik.");
-                    }
-                },
-
-                renderChart(canvasId, type, labels, dataIn, dataOut) {
-                    const canvasEl = document.getElementById(canvasId);
-                    if (!canvasEl) return;
-
-                    // Hapus chart lama jika ada agar tidak memory leak/double render
-                    if (this.historyCharts[canvasId]) {
-                        this.historyCharts[canvasId].destroy();
-                    }
-
-                    const ctx = canvasEl.getContext('2d');
-                    this.historyCharts[canvasId] = new Chart(ctx, {
-                        type: type,
-                        data: {
-                            labels: labels,
-                            datasets: [
-                                {
-                                    label: 'Masuk',
-                                    data: dataIn,
-                                    borderColor: '#3b82f6',
-                                    backgroundColor: type === 'bar' ? '#3b82f6' : 'rgba(59, 130, 246, 0.1)',
-                                    tension: 0.3,
-                                    fill: type === 'line',
-                                    borderRadius: 3,
-                                    pointRadius: type === 'line' ? 3 : 0
-                                },
-                                {
-                                    label: 'Keluar',
-                                    data: dataOut,
-                                    borderColor: '#f97316',
-                                    backgroundColor: type === 'bar' ? '#f97316' : 'rgba(249, 115, 22, 0.1)',
-                                    tension: 0.3,
-                                    fill: type === 'line',
-                                    borderRadius: 3,
-                                    pointRadius: type === 'line' ? 3 : 0
-                                }
-                            ]
-                        },
-                        options: {
-                            responsive: true, maintainAspectRatio: false,
-                            plugins: { legend: { display: false } },
-                            interaction: { mode: 'index', intersect: false },
-                            scales: {
-                                y: { beginAtZero: true, grid: { borderDash: [2, 4] } },
-                                x: { grid: { display: false }, ticks: { maxTicksLimit: 8, font: {size: 10} } }
-                            }
-                        }
-                    });
-                }
+            // Dropdown Logic
+            if (tabName === 'monthly') {
+                dateDropdown.classList.remove('hidden');
+            } else {
+                dateDropdown.classList.add('hidden');
             }
         }
+
+        // --- Chart Configurations ---
+        
+        // 1. Pie Chart
+        const ctxPie = document.getElementById('pieChart').getContext('2d');
+        new Chart(ctxPie, {
+            type: 'pie',
+            data: {
+                labels: ['Come', 'Leave'],
+                datasets: [{
+                    data: [75, 25],
+                    backgroundColor: ['#14b8a6', '#facc15'],
+                    borderWidth: 0,
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                layout: { padding: 10 }
+            }
+        });
+
+        // 2. Daily Chart
+        const ctxDaily = document.getElementById('dailyChart').getContext('2d');
+        const dailyLabels = ['06.00', '07.00', '08.00', '09.00', '10.00', '11.00', '12.00', '13.00', '14.00', '15.00', '16.00', '17.00', '18.00'];
+        
+        new Chart(ctxDaily, {
+            type: 'line',
+            data: {
+                labels: dailyLabels,
+                datasets: [
+                    {
+                        label: 'in',
+                        data: [12, 12, 18, 17, 16, 19, 16, 13, 16, 18, 14, 10, 14, 19],
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 0,
+                        pointHoverRadius: 4
+                    },
+                    {
+                        label: 'out',
+                        data: [7, 12, 10, 13, 11, 13, 14, 12.5, 13, 13.5, 10, 5, 9, 14.5],
+                        borderColor: '#f97316',
+                        backgroundColor: 'rgba(249, 115, 22, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 0,
+                        pointHoverRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        align: 'end',
+                        labels: { usePointStyle: true, boxWidth: 10 }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: false, min: 5, max: 30,
+                        grid: { color: '#f3f4f6' },
+                        ticks: { stepSize: 5, font: { size: 10 } }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { 
+                            font: { size: 10 },
+                            callback: function(val) {
+                                const label = this.getLabelForValue(val);
+                                return ['07.00', '12.00', '16.00'].includes(label) ? label : '';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // 3. Monthly Chart
+        const ctxMonthly = document.getElementById('monthlyChart').getContext('2d');
+        const labelsMonthly = Array.from({length: 31}, (_, i) => i + 1);
+        
+        new Chart(ctxMonthly, {
+            type: 'line',
+            data: {
+                labels: labelsMonthly,
+                datasets: [{
+                    label: 'visitor',
+                    data: [12, 12, 12, 15, 18, 17.5, 17, 16.5, 16, 15.5, 17, 18, 19, 17, 15, 14, 13, 14, 15, 16, 17, 18, 16, 14, 12, 10, 12, 14, 16, 18, 20],
+                    borderColor: '#3b82f6',
+                    backgroundColor: '#3b82f6',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        align: 'end',
+                        labels: { usePointStyle: true, boxWidth: 8, boxHeight: 1 }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: false, min: 5, max: 30,
+                        grid: { color: '#f3f4f6' },
+                        ticks: { stepSize: 5, font: { size: 10 } }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { font: { size: 10 }, maxRotation: 0 }
+                    }
+                }
+            }
+        });
     </script>
 </body>
 </html>
