@@ -30,6 +30,47 @@ Untuk menghitung "Masuk" atau "Keluar", sistem tidak hanya melihat posisi, tapi 
 
 ---
 
+## 📐 Arsitektur & Alur Kerja
+
+### System Architecture
+Diagram ini menunjukkan bagaimana komponen Front-End (Browser), Back-End (Flask), AI (YOLO), dan Database berinteraksi.
+
+```mermaid
+graph TD
+    User[User / Browser] <-->|HTTP Requests (AJAX)| Server[Flask Server]
+    Server <-->|SQL Queries| DB[(SQLite Database)]
+    Server <-->|Reads Frame| Threads[Video Processing Thread (Background)]
+    Threads <-->|Captures| Cam[Camera Source / CCTV]
+    Threads <-->|Inference| Model[YOLOv4-tiny Model]
+    
+    subgraph "Backend Core"
+    Server
+    Threads
+    Model
+    end
+```
+
+### Flow Logic (Alur Deteksi)
+Langkah-langkah yang terjadi dalam setiap frame video untuk menghitung pengunjung:
+
+```mermaid
+flowchart TD
+    A[Start Frame] --> B{Camera Active?}
+    B -- No --> Z[Stop / Reconnect]
+    B -- Yes --> C[Capture Frame]
+    C --> D[Object Detection (YOLO)]
+    D --> E[Centroid Tracking]
+    E --> F{Crossed Line?}
+    F -- Yes --> G[Update Counter & DB]
+    F -- No --> H[Draw UI Overlay]
+    G --> H
+    H --> I[Encode JPEG]
+    I --> J[Stream to Browser]
+    J --> B
+```
+
+---
+
 ## 🗄️ Desain Database (ERD)
 
 Sistem ini menggunakan **SQLite** dengan pendekatan *Granular Event Logging* untuk akurasi data real-time.
