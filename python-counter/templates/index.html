@@ -86,8 +86,16 @@
 
 <body class="bg-gray-100 h-screen flex overflow-hidden selection:bg-blue-100">
 
-    <aside class="w-20 bg-white h-full flex flex-col items-center py-8 shadow-sm z-20 flex-shrink-0">
-        <div class="mb-10"></div>
+    <!-- Mobile Overlay -->
+    <div id="sidebar-overlay" onclick="toggleSidebar()"
+        class="fixed inset-0 bg-black/50 z-30 hidden md:hidden transition-opacity"></div>
+
+    <aside id="sidebar"
+        class="w-20 bg-white h-full flex flex-col items-center py-8 shadow-sm z-40 flex-shrink-0 fixed inset-y-0 left-0 transform -translate-x-full md:relative md:translate-x-0 transition-all duration-300">
+        <button onclick="toggleSidebar()" class="mb-8 text-gray-400 hover:text-blue-500 transition-colors">
+            <i class="fa-solid fa-bars text-2xl"></i>
+        </button>
+        <div class="hidden md:block mb-2"></div>
         <nav class="flex flex-col gap-8 w-full">
             <button onclick="switchTab('camera')" id="btn-camera"
                 class="nav-btn w-full h-12 flex items-center justify-center text-blue-500 border-r-4 border-blue-500 transition-all hover:bg-gray-50">
@@ -112,8 +120,11 @@
             class="bg-white w-full h-full max-w-7xl rounded-[2.5rem] shadow-xl overflow-hidden relative flex flex-col p-6 md:p-10">
 
             <header class="flex justify-between items-center mb-6 h-10 flex-shrink-0">
-                <div class="text-[#1e1b4b] text-2xl font-bold flex items-center gap-2">
-                    <i class="fa-solid fa-book-open"></i> PerpusQu
+                <div class="flex items-center gap-4">
+                    <button onclick="toggleSidebar()"
+                        class="text-[#1e1b4b] hover:text-blue-600 transition-colors text-2xl font-bold flex items-center gap-2">
+                        <i class="fa-solid fa-book-open"></i> PerpusQu
+                    </button>
                 </div>
 
                 <!-- Camera Selector -->
@@ -321,6 +332,36 @@
     </div>
 
     <script>
+        // --- Sidebar Logic ---
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            const isDesktop = window.innerWidth >= 768;
+
+            if (isDesktop) {
+                // Desktop: Toggle width to collapse/expand
+                if (sidebar.classList.contains('w-0')) {
+                    // Open
+                    sidebar.classList.remove('w-0', 'p-0', 'overflow-hidden');
+                    sidebar.classList.add('w-20', 'py-8');
+                } else {
+                    // Close
+                    sidebar.classList.remove('w-20', 'py-8');
+                    sidebar.classList.add('w-0', 'p-0', 'overflow-hidden');
+                }
+            } else {
+                // Mobile: Toggle Translate
+                if (sidebar.classList.contains('-translate-x-full')) {
+                    sidebar.classList.remove('-translate-x-full');
+                    overlay.classList.remove('hidden');
+                } else {
+                    sidebar.classList.add('-translate-x-full');
+                    overlay.classList.add('hidden');
+                }
+            }
+        }
+
+
         // --- Real-time Stats Polling ---
         function updateStats() {
             fetch('/api/stats')
@@ -499,6 +540,14 @@
                 dateDropdown.classList.remove('hidden');
             } else {
                 dateDropdown.classList.add('hidden');
+            }
+
+            // Auto Close Sidebar on Mobile
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            if (window.innerWidth < 768 && sidebar && !sidebar.classList.contains('-translate-x-full')) {
+                sidebar.classList.add('-translate-x-full');
+                overlay.classList.add('hidden');
             }
         }
 
