@@ -128,6 +128,33 @@ erDiagram
 
 ---
 
+## ⚖️ Kelebihan & Kekurangan
+
+### ✅ Kelebihan
+*   **Ringan & Cepat**: Menggunakan YOLOv4-tiny yang sangat efisien, berjalan lancar di CPU standar laptop tanpa butuh GPU mahal.
+*   **Sistem Mandiri (Privacy Focused)**: Semua pemrosesan video dilakukan secara lokal (offline). Tidak ada video yang dikirim ke cloud, menjamin privasi.
+*   **Stabilitas Tinggi**: Dilengkapi fitur *Auto-Recovery* kamera dan *Threaded Processing*, sehingga dashboard tidak freeze meskipun kamera terputus.
+*   **Interface Modern**: Dashboard responsif dengan grafik analitik yang update real-time, jauh lebih informatif dibanding counter 7-segment biasa.
+
+### ❌ Kekurangan
+*   **Sensitivitas Okulasi**: Karena masih menggunakan *Centroid Tracking* sederhana, sistem mungkin bingung jika dua orang berjalan sangat berdekatan atau saling silang (ID switching).
+*   **Ketergantungan Sudut Kamera**: Akurasi sangat bergantung pada posisi kamera. Kamera wajib diletakkan agak tinggi (high angle) agar objek tidak saling menutupi.
+*   **Pencahayaan**: Performa deteksi menurun drastis di kondisi minim cahaya atau *backlight* kuat.
+
+---
+
+## 🔮 Saran Pengembangan
+
+Untuk meningkatkan kemampuan sistem di masa depan, berikut beberapa roadmap yang disarankan:
+
+1.  **Upgrade Tracker**: Mengganti Centroid Tracker dengan **DeepSORT** atau **ByteTrack** untuk menangani *occlusion* (orang saling menutupi) dengan jauh lebih baik.
+2.  **Dynamic Zone Editor**: Menambahkan fitur di UI untuk menggambar garis batas (counting line) secara visual, sehingga tidak perlu hardcode koordinat di `app.py`.
+3.  **Integrasi Hardware AI**: Menggunakan akselerator seperti **Google Coral USB** atau **NVIDIA Jetson** agar bisa menggunakan model yang lebih berat (YOLOv8/YOLOv4 Full) dengan FPS tinggi.
+4.  **Notifikasi Cerdas**: Menambahkan fitur alert (Telegram/WA/Email) otomatis jika jumlah orang dalam ruangan melebihi kapasitas (Overcrowding).
+5.  **Ekspor Data**: Fitur download laporan dalam format Excel/CSV/PDF untuk kebutuhan administrasi.
+
+---
+
 ## 🚀 Panduan Instalasi
 
 ### 1️⃣ Persiapan
